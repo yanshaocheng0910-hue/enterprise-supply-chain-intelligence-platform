@@ -1,0 +1,14 @@
+{
+  "material_code": "M-100",
+  "lead_time": 7,
+  "history": [
+    {"date": "2026-08-01", "quantity": 12},
+    {"date": "2026-08-02", "quantity": 15},
+    {"date": "2026-08-03", "quantity": 10},
+    {"date": "2026-08-04", "quantity": 14},
+    {"date": "2026-08-05", "quantity": 16},
+    {"date": "2026-08-06", "quantity": 13},
+    {"date": "2026-08-07", "quantity": 11}
+  ]
+}
+

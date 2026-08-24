@@ -1,0 +1,5 @@
+{
+  "text": "订单 PO-1001 已发货 80 箱，预计 2026-09-03 到货，运单号 YD-9001",
+  "intent_hint": "delivery_notice"
+}
+

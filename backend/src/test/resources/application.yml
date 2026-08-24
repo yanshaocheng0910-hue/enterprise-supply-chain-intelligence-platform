@@ -1,0 +1,27 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:scic_test;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  flyway:
+    enabled: true
+  main:
+    banner-mode: off
+logging:
+  level:
+    root: WARN
+  file:
+    name: D:/论文/.data/logs/backend-test.log
+scic:
+  jwt:
+    secret: test-secret-that-is-long-enough-for-hmac-signing
+    expiration-seconds: 3600
+  ai:
+    base-url: http://127.0.0.1:65530
+    service-token: test-token
+    connect-timeout-ms: 100
+    read-timeout-ms: 100
+  cors:
+    allowed-origins: http://localhost:5173
+

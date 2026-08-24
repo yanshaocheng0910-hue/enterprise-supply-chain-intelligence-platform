@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-24",
+  "product": {
+    "name": "企业供应链数智化协同平台",
+    "northStar": "作战台账",
+    "density": "compact-professional",
+    "theme": "light"
+  },
+  "colors": {
+    "format": "oklch",
+    "tokens": {
+      "ink": "oklch(26% 0.025 92)",
+      "inkSoft": "oklch(43% 0.025 92)",
+      "muted": "oklch(56% 0.025 92)",
+      "faint": "oklch(69% 0.02 92)",
+      "border": "oklch(88% 0.018 92)",
+      "paper": "oklch(99.2% 0.004 92)",
+      "surface": "oklch(97.7% 0.008 92)",
+      "olive": "oklch(48% 0.075 112)",
+      "oliveDeep": "oklch(38% 0.072 112)",
+      "oliveSoft": "oklch(91% 0.035 112)",
+      "blue": "oklch(42% 0.09 250)",
+      "success": "oklch(45% 0.09 150)",
+      "warning": "oklch(54% 0.12 70)",
+      "danger": "oklch(51% 0.14 30)"
+    },
+    "rules": ["primary-under-10-percent", "semantic-colors-only", "state-never-color-only"]
+  },
+  "typography": {
+    "family": ["Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", "Arial", "sans-serif"],
+    "scalePx": {"meta": 10, "label": 12, "body": 13, "title": 16, "pageTitle": 26, "displayMin": 32, "displayMax": 54},
+    "numeric": "tabular-nums"
+  },
+  "elevation": {
+    "radiusPx": {"compact": 3, "default": 5},
+    "shadowOverlay": "0 12px 34px oklch(22% 0.035 92 / 0.07)",
+    "principle": "borders-and-surface-difference-first"
+  },
+  "motion": {"sidebarMs": 160, "decorativeMotion": false, "respectReducedMotion": true},
+  "breakpointsPx": {"wide": 1180, "tablet": 860, "mobile": 640},
+  "components": [
+    {"name": "AppShell", "rule": "role-filtered navigation; real JWT cannot switch role"},
+    {"name": "PageHeader", "rule": "task title, evidence-oriented subtitle, one primary action"},
+    {"name": "MetricStrip", "rule": "server or list-derived values only"},
+    {"name": "DataTable", "rule": "right-aligned numerics, explicit empty/error states"},
+    {"name": "StatusBadge", "rule": "text plus semantic dot; unknown status degrades safely"},
+    {"name": "ImportBatch", "rule": "preview, errors, explicit commit"},
+    {"name": "AiParsePreview", "rule": "source, fields, validation, provider, impact, confirmation"},
+    {"name": "ForecastPanel", "rule": "model, baseline, metrics, 14 points, fallback and data label"},
+    {"name": "StateAction", "rule": "backend-allowed command, version, idempotency and result refresh"}
+  ],
+  "antiPatterns": ["fake-real-time-metrics", "silent-demo-fallback", "generic-crud-skin", "decorative-ai-glow", "dashboard-card-wall"]
+}

@@ -1,0 +1,4 @@
+material_code,material_name,category,unit,safety_stock,min_order_qty,pack_size,lead_time_days,standard_price
+MAT-CPU-01,工业控制处理器,电子元件,件,30,10,10,7,1280.00
+MAT-MEM-01,DDR4工业内存,电子元件,件,50,20,10,5,420.00
+MAT-PKG-01,防静电包装箱,包装材料,箱,100,50,50,3,18.50

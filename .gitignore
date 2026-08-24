@@ -1,0 +1,28 @@
+# Local dependencies and caches (kept on D: but never committed)
+.cache/
+.tools/
+.data/
+**/.venv/
+**/node_modules/
+
+# Build outputs
+backend/target/
+frontend/dist/
+ai-service/.pytest_cache/
+**/__pycache__/
+*.pyc
+
+# Runtime files and secrets
+.env
+*.log
+logs/
+output/playwright/
+.playwright-cli/
+.pytest_cache/
+**/.pytest_cache/
+
+# Editors / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

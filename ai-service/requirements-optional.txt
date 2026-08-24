@@ -1,0 +1,4 @@
+# Optional main-model dependency.  The service and all baseline tests work
+# without this package and explicitly report an MA7 fallback when unavailable.
+xgboost>=2.1,<4
+

@@ -1,0 +1,92 @@
+name: ${COMPOSE_PROJECT_NAME:-scic-platform}
+
+services:
+  mysql:
+    image: mysql:8.4
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-scic_platform}
+      MYSQL_USER: ${MYSQL_USER:-scic}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-CHANGE_ME_mysql_password}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-CHANGE_ME_mysql_root_password}
+    volumes:
+      - type: bind
+        source: ${SCIC_DATA_DIR:-D:/论文/.data}/mysql
+        target: /var/lib/mysql
+    ports:
+      - "127.0.0.1:3306:3306"
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  ai-service:
+    build:
+      context: ./ai-service
+    environment:
+      X_SERVICE_TOKEN: ${SCIC_AI_SERVICE_TOKEN:-CHANGE_ME_local_ai_service_token}
+      LLM_PROVIDER: ${LLM_PROVIDER:-rule}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-}
+      OPENAI_TIMEOUT_SECONDS: ${OPENAI_TIMEOUT_SECONDS:-15}
+      CORS_ALLOW_ORIGINS: ${CORS_ALLOW_ORIGINS:-http://localhost:8088,http://127.0.0.1:8088}
+      SERVICE_NAME: ai-service
+      SERVICE_VERSION: 0.1.0
+    expose:
+      - "8001"
+    networks:
+      - scic-internal
+
+  backend:
+    build:
+      context: ./backend
+    environment:
+      SCIC_SERVER_PORT: 8080
+      SCIC_DB_DRIVER: com.mysql.cj.jdbc.Driver
+      SCIC_DB_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE:-scic_platform}?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
+      SCIC_DB_USER: ${MYSQL_USER:-scic}
+      SCIC_DB_PASSWORD: ${MYSQL_PASSWORD:-CHANGE_ME_mysql_password}
+      SCIC_JWT_SECRET: ${SCIC_JWT_SECRET:-CHANGE_ME_compose_jwt_secret}
+      SCIC_JWT_EXPIRATION_SECONDS: ${SCIC_JWT_EXPIRATION_SECONDS:-28800}
+      SCIC_AI_BASE_URL: http://ai-service:8001
+      SCIC_AI_SERVICE_TOKEN: ${SCIC_AI_SERVICE_TOKEN:-CHANGE_ME_local_ai_service_token}
+      SCIC_AI_CONNECT_TIMEOUT_MS: ${SCIC_AI_CONNECT_TIMEOUT_MS:-2000}
+      SCIC_AI_READ_TIMEOUT_MS: ${SCIC_AI_READ_TIMEOUT_MS:-15000}
+      SCIC_CORS_ORIGINS: http://localhost:8088,http://127.0.0.1:8088
+      SCIC_LOG_FILE: /app/.data/logs/backend.log
+    volumes:
+      - type: bind
+        source: ${SCIC_DATA_DIR:-D:/论文/.data}/logs
+        target: /app/.data/logs
+    depends_on:
+      mysql:
+        condition: service_healthy
+      ai-service:
+        condition: service_started
+    ports:
+      - "127.0.0.1:8080:8080"
+    networks:
+      - scic-internal
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE_URL: /api/v1
+        VITE_ENABLE_DEMO_FALLBACK: "false"
+    depends_on:
+      backend:
+        condition: service_started
+    ports:
+      - "127.0.0.1:8088:80"
+    networks:
+      - scic-internal
+
+networks:
+  scic-internal:
+    driver: bridge
+

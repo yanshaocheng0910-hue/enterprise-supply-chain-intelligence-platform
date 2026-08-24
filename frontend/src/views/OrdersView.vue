@@ -1,0 +1,45 @@
+<template>
+  <div>
+    <PageHeader title="采购订单" description="订单是计划审批后的执行单据；状态迁移由后端校验，供应商仅可访问绑定订单。">
+      <template #actions><el-button :icon="Refresh" :loading="loading" @click="load">刷新订单</el-button><el-button v-if="auth.role === 'BUYER'" type="primary" :icon="DocumentAdd" @click="createOrder">生成订单</el-button></template>
+    </PageHeader>
+    <section class="surface order-table">
+      <div class="toolbar"><el-input v-model="keyword" clearable placeholder="搜索订单号、供应商" :prefix-icon="Search" /><el-select v-model="statusFilter" clearable placeholder="全部状态" style="width: 155px"><el-option v-for="item in statusOptions" :key="item.value" :label="item.label" :value="item.value" /></el-select><span class="toolbar-spacer"></span><span class="toolbar-meta">{{ filtered.length }} 笔订单</span></div>
+      <div v-if="errorMessage" class="inline-error"><WarningFilled />{{ errorMessage }}</div>
+      <div v-if="loading && !orders.length" class="table-loading"><div v-for="i in 4" :key="i" class="skeleton" style="height: 44px"></div></div>
+      <div v-else-if="!filtered.length"><EmptyState title="暂无采购订单" description="请先审批采购计划，再生成订单。" action-text="查看采购计划" @action="router.push('/purchase-plans')" /></div>
+      <div v-else class="table-wrap"><el-table :data="filtered" stripe><el-table-column prop="orderNo" label="订单号" width="170" /><el-table-column prop="supplierName" label="供应商" min-width="185" /><el-table-column label="物料行" width="90" align="right"><template #default="scope"><span class="number">{{ scope.row.itemCount || '—' }}</span></template></el-table-column><el-table-column label="订单金额" width="140" align="right"><template #default="scope"><span class="number">{{ scope.row.totalAmount ? `¥${scope.row.totalAmount.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}` : '—' }}</span></template></el-table-column><el-table-column prop="promisedDate" label="承诺交期" width="120" /><el-table-column label="状态" width="135"><template #default="scope"><StatusBadge :label="statusMeta(scope.row.status).label" :tone="statusMeta(scope.row.status).tone" /></template></el-table-column><el-table-column prop="sourcePlanNo" label="来源计划" width="150" /><el-table-column prop="updatedAt" label="更新时间" width="170" /><el-table-column label="操作" width="220" fixed="right"><template #default="scope"><el-button link type="primary" @click="showDetail(scope.row)">查看</el-button><el-button v-if="(scope.row.status === 'PENDING_CONFIRM' || scope.row.status === 'PENDING_CONFIRMATION') && auth.role === 'SUPPLIER'" link type="primary" @click="confirmOrder(scope.row)">确认</el-button><el-button v-if="scope.row.status === 'CONFIRMED' && auth.role === 'SUPPLIER'" link type="primary" @click="startFulfillment(scope.row)">开始履约</el-button></template></el-table-column></el-table></div>
+    </section>
+    <el-drawer v-model="detailVisible" title="采购订单详情" size="455px"><template v-if="selected"><div class="drawer-title"><div class="drawer-code">{{ selected.orderNo }}</div><h2>{{ selected.supplierName || '服务端未返回供应商' }}</h2><StatusBadge :label="statusMeta(selected.status).label" :tone="statusMeta(selected.status).tone" /></div><dl class="drawer-list"><div><dt>物料行</dt><dd>{{ selected.itemCount ? `${selected.itemCount} 行` : '服务端未返回' }}</dd></div><div><dt>订单金额</dt><dd>{{ selected.totalAmount ? `¥${selected.totalAmount.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}` : '服务端未返回' }}</dd></div><div><dt>承诺交期</dt><dd>{{ selected.promisedDate || '服务端未返回' }}</dd></div><div><dt>来源计划</dt><dd>{{ selected.sourcePlanNo || '服务端未返回' }}</dd></div><div><dt>更新时间</dt><dd>{{ selected.updatedAt || '服务端未返回' }}</dd></div></dl><div v-if="(selected.status === 'PENDING_CONFIRM' || selected.status === 'PENDING_CONFIRMATION') && auth.role === 'SUPPLIER'" class="drawer-actions"><el-button type="primary" :loading="updating" @click="confirmOrder(selected)">确认订单</el-button></div><div v-if="selected.status === 'CONFIRMED' && auth.role === 'SUPPLIER'" class="drawer-actions"><el-button type="primary" :loading="updating" @click="startFulfillment(selected)">开始履约</el-button></div><div class="inline-note">状态流转、重复确认和供应商数据范围由服务端统一校验。</div></template></el-drawer>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { computed, onMounted, ref } from 'vue'
+import { ElMessage } from 'element-plus'
+import { DocumentAdd, Refresh, Search, WarningFilled } from '@element-plus/icons-vue'
+import { useRouter } from 'vue-router'
+import PageHeader from '@/components/PageHeader.vue'
+import StatusBadge from '@/components/StatusBadge.vue'
+import EmptyState from '@/components/EmptyState.vue'
+import { useAuthStore } from '@/stores/auth'
+import { apiList, apiMutate, extractApiError } from '@/services/api'
+import { demoOrders } from '@/services/demo'
+import { mapOrder } from '@/services/mappers'
+import type { PurchaseOrder } from '@/types'
+
+const router = useRouter(); const auth = useAuthStore(); const orders = ref<PurchaseOrder[]>([]); const keyword = ref(''); const statusFilter = ref(''); const loading = ref(false); const updating = ref(false); const errorMessage = ref(''); const selected = ref<PurchaseOrder>(); const detailVisible = ref(false)
+const statusOptions = [{ value: 'PENDING_CONFIRM', label: '待供应商确认' }, { value: 'CONFIRMED', label: '已确认' }, { value: 'PARTIAL', label: '部分到货' }, { value: 'DELIVERED', label: '已到货' }, { value: 'CLOSED', label: '已关闭' }, { value: 'CANCELLED', label: '已取消' }]
+const filtered = computed(() => orders.value.filter((item) => (!statusFilter.value || item.status === statusFilter.value) && (!keyword.value || `${item.orderNo}${item.supplierName}`.toLowerCase().includes(keyword.value.toLowerCase()))))
+async function load() { loading.value = true; errorMessage.value = ''; try { const result = await apiList<PurchaseOrder>({ method: 'GET', url: '/purchase-orders' }, mapOrder, () => demoOrders); orders.value = result.records } catch (error) { errorMessage.value = extractApiError(error) } finally { loading.value = false } }
+function createOrder() { ElMessage.info('订单生成需要已批准的采购计划，服务端会执行幂等检查。请先在采购计划中选择已批准计划。') }
+function showDetail(item: PurchaseOrder) { selected.value = item; detailVisible.value = true }
+async function confirmOrder(item: PurchaseOrder) { updating.value = true; try { const raw = await apiMutate<unknown>({ method: 'POST', url: `/purchase-orders/${item.id}/actions`, data: { action: 'CONFIRM', expectedVersion: item.version ?? 0, note: '供应商确认订单' } }, () => ({ ...item, status: 'CONFIRMED', updatedAt: new Date().toLocaleString('zh-CN', { hour12: false }) })); const result = mapOrder(raw); orders.value = orders.value.map((entry) => entry.id === result.id ? result : entry); selected.value = result; ElMessage.success('订单确认已提交，并保留审计记录') } catch (error) { ElMessage.error(extractApiError(error)) } finally { updating.value = false } }
+async function startFulfillment(item: PurchaseOrder) { updating.value = true; try { const raw = await apiMutate<unknown>({ method: 'POST', url: `/purchase-orders/${item.id}/actions`, data: { action: 'PREPARE_SHIPMENT', expectedVersion: item.version ?? 0, note: '供应商开始履约' } }, () => ({ ...item, status: 'PENDING_SHIPMENT', updatedAt: new Date().toLocaleString('zh-CN', { hour12: false }) })); const result = mapOrder(raw); orders.value = orders.value.map((entry) => entry.id === result.id ? result : entry); selected.value = result; ElMessage.success('订单已进入待发货履约阶段') } catch (error) { ElMessage.error(extractApiError(error)) } finally { updating.value = false } }
+function statusMeta(value: PurchaseOrder['status']) { return ({ PENDING_CONFIRM: { label: '待确认', tone: 'warning' }, PENDING_CONFIRMATION: { label: '待供应商确认', tone: 'warning' }, CONFIRMED: { label: '已确认', tone: 'blue' }, PENDING_SHIPMENT: { label: '待发货', tone: 'warning' }, SHIPPED: { label: '已发货', tone: 'blue' }, ARRIVED: { label: '已到达', tone: 'success' }, PARTIAL: { label: '部分到货', tone: 'warning' }, DELIVERED: { label: '已到货', tone: 'success' }, RECEIVED: { label: '已收货', tone: 'success' }, RECONCILING: { label: '对账中', tone: 'warning' }, COMPLETED: { label: '已完成', tone: 'success' }, REJECTED: { label: '已拒绝', tone: 'danger' }, CLOSED: { label: '已关闭', tone: 'neutral' }, CANCELLED: { label: '已取消', tone: 'neutral' } } as Record<string, { label: string; tone: 'neutral' | 'warning' | 'success' | 'blue' | 'danger' }>)[value] || { label: value, tone: 'neutral' } }
+onMounted(load)
+</script>
+
+<style scoped>
+.order-table { overflow: hidden; }.toolbar-meta { color: var(--lm-muted); font-size: 11px; }.number { font-variant-numeric: tabular-nums; }.drawer-title { padding-bottom: 18px; border-bottom: 1px solid var(--lm-border); }.drawer-code { color: var(--lm-olive); font-size: 11px; font-weight: 750; }.drawer-title h2 { margin: 8px 0 11px; font-size: 20px; }.drawer-list { margin: 5px 0 0; }.drawer-list > div { display: flex; justify-content: space-between; gap: 20px; padding: 14px 0; border-bottom: 1px solid var(--lm-border); }.drawer-list dt { color: var(--lm-muted); font-size: 12px; }.drawer-list dd { margin: 0; font-size: 12px; font-weight: 650; text-align: right; }.drawer-actions { margin-top: 22px; }.inline-note { margin-top: 20px; }
+</style>

@@ -1,0 +1,4 @@
+warehouse_code,material_code,on_hand_qty,reserved_qty,in_transit_qty
+WH-001,MAT-CPU-01,120,20,40
+WH-001,MAT-MEM-01,260,40,80
+WH-002,MAT-PKG-01,600,100,200

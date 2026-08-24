@@ -1,0 +1,7 @@
+spring:
+  datasource:
+    url: ${SCIC_DB_URL:jdbc:mysql://127.0.0.1:3306/scic_platform?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false}
+    username: ${SCIC_DB_USER:scic}
+    password: ${SCIC_DB_PASSWORD:scic_change_me}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
