@@ -16,7 +16,7 @@
 - Flyway 数据库迁移：本地默认 H2 文件库，Compose 候选使用 MySQL 8。
 - 工程证据：需求、设计、API、测试、实验、论文映射、运行手册、UAT 台账和源材料留档。
 
-自动化测试已通过：Spring Boot 集成测试 8 项、FastAPI 测试 13 项；完整业务闭环已通过 API 实测。浏览器证据和最终执行记录见 `docs/04-testing` 与 `docs/assets/screenshots`。Docker 在当前电脑不可用，因此 MySQL/Compose 只完成静态检查，不能视为已部署验收。
+自动化测试已通过：Spring Boot 集成测试 10 项、FastAPI 测试 13 项；完整业务闭环已通过 API 实测。浏览器证据和最终执行记录见 `docs/04-testing` 与 `docs/assets/screenshots`。Docker 在当前电脑不可用，因此 MySQL/Compose 只完成静态检查，不能视为已部署验收。
 
 ## 本地启动
 
