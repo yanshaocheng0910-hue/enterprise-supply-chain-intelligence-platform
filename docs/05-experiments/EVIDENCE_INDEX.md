@@ -32,6 +32,7 @@
 | EV-20 | `docs/05-experiments/FORECAST_RUN_2026-08-24.md` | 预测实验摘要 | `DEMO_SYNTHETIC`；XGBoost MAE 1.443933、RMSE 3.214012、MAPE 3.165298%、3 折、14 点；明确非生产 |
 | EV-21 | `docs/05-experiments/AI_PARSE_SMOKE_2026-08-24.md` | AI 解析烟测 | `rule` provider 本地烟测；未配置或调用外部 OpenAI-compatible LLM，需人工确认 |
 | EV-22 | `docs/assets/screenshots/README.md`、`docs/assets/screenshots/*.png` | 浏览器候选版证据 | 7 张真实页面截图；四角色、看板、预测逐日结果、AI 解析预览、供应商订单和管理员用户页；全新登录页控制台 0 errors / 0 warnings |
+| EV-23 | `docs/04-testing/SOL_FINAL_REVIEW_2026-08-25.md` | 独立最终验收 | RC2 结论为 `PASS WITH NON-BLOCKING LIMITATIONS`，阻断项为 0；允许开始个人 UAT，明确保留本机安全、Docker/MySQL、外部 LLM、生产数据和 V1.0 边界 |
 
 ## 2. 尚缺证据
 

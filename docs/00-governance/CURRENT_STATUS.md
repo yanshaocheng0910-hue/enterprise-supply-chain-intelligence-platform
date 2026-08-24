@@ -23,7 +23,7 @@
 
 - 实际测试/实验执行记录、追踪矩阵、设计系统和浏览器证据已刷新；
 - 候选版页面、接口、角色和演示闭环已具备交接入口；
-- Sol Max 首轮独立验收提出的六项阻断已修复；RC2 复验结论将固化在 `docs/04-testing/SOL_FINAL_REVIEW_2026-08-25.md`。
+- Sol Max 首轮独立验收提出的六项阻断已全部关闭；RC2 最终结论为 `PASS WITH NON-BLOCKING LIMITATIONS`、阻断项为 0，可以开始个人 UAT。报告见 `docs/04-testing/SOL_FINAL_REVIEW_2026-08-25.md`。
 
 ## 尚未完成的发布门槛
 
