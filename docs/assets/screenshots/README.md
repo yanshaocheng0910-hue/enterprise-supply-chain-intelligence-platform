@@ -12,6 +12,6 @@
 | UI-04 | `04-ai-parse-preview.png` | `buyer` / AI 语义解析 | `MAT-BOX-05`、20 件、2026-09-01；provider=`rule`；Schema/业务校验和影响预览；未执行确认写入 |
 | UI-05 | `05-supplier-orders.png` | `supplier` / 采购订单 | 2026-08-25 重新取得并逐图核对；仅显示绑定供应商订单，订单 `PO-202608-001` 为已完成 |
 | UI-06 | `06-admin-users.png` | `admin` / 用户与角色 | 四个账号、角色、供应商绑定、版本和管理员专属操作 |
-| UI-07 | `07-manager-dashboard.png` | `manager` / 管理总览 | 管理者只读/审批相关导航、真实后端汇总与审计入口 |
+| UI-07 | `07-manager-dashboard.png` | `manager` / 管理总览 | 2026-08-25 重新取得；顶部仅保留刷新动作，不显示采购创建按钮；展示管理范围导航、真实后端汇总与审计入口 |
 
 浏览器控制台最终以全新登录页会话复核：`0 errors / 0 warnings`。本索引证明候选版页面巡检，不代表用户个人 UAT 已通过。
