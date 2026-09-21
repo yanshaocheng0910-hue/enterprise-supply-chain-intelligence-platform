@@ -14,6 +14,7 @@ export const apiClient = axios.create({
 
 const demoMode = ref(localStorage.getItem('luna_demo_mode') === '1')
 let lastApiError = ''
+let redirectingToLogin = false
 
 export const demoModeState = readonly(demoMode)
 
@@ -27,9 +28,27 @@ apiClient.interceptors.response.use(
   (response) => response,
   (error: AxiosError<unknown>) => {
     lastApiError = extractApiError(error)
+    if (error.response?.status === 401) handleUnauthorized(error)
     return Promise.reject(error)
   },
 )
+
+function handleUnauthorized(error: AxiosError<unknown>) {
+  if (typeof window === 'undefined') return
+  const requestPath = String(error.config?.url || '')
+  const onLoginPage = window.location.pathname === '/login'
+  const isLoginRequest = requestPath.includes('/auth/login')
+  if (onLoginPage || isLoginRequest || redirectingToLogin) return
+
+  localStorage.removeItem('luna_access_token')
+  localStorage.removeItem('luna_session')
+  localStorage.removeItem('luna_demo_mode')
+  redirectingToLogin = true
+
+  const returnTo = `${window.location.pathname}${window.location.search}${window.location.hash}`
+  const loginUrl = `/login?reason=expired&redirect=${encodeURIComponent(returnTo)}`
+  window.location.replace(loginUrl)
+}
 
 export function isDemoMode() { return demoMode.value }
 export function getLastApiError() { return lastApiError }

@@ -26,7 +26,7 @@
           <el-form-item label="密码" prop="password">
             <el-input v-model="form.password" type="password" show-password autocomplete="current-password" placeholder="请输入密码" @keyup.enter="submit" />
           </el-form-item>
-          <div v-if="auth.errorMessage" class="inline-error" role="alert"><WarningFilled />{{ auth.errorMessage }}</div>
+          <div v-if="loginMessage" class="inline-error" role="alert"><WarningFilled />{{ loginMessage }}</div>
           <el-button type="primary" native-type="button" :loading="auth.loading" @click="submit">进入工作台</el-button>
         </el-form>
 
@@ -46,7 +46,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { FormInstance, FormRules } from 'element-plus'
 import { WarningFilled } from '@element-plus/icons-vue'
@@ -55,6 +55,7 @@ import { useAuthStore } from '@/stores/auth'
 const auth = useAuthStore()
 const router = useRouter()
 const route = useRoute()
+const loginMessage = computed(() => auth.errorMessage || (route.query.reason === 'expired' ? '登录已失效，请重新登录后继续。' : ''))
 const formRef = ref<FormInstance>()
 const form = reactive({ username: '', password: '' })
 const rules: FormRules = {
@@ -80,7 +81,8 @@ async function submit() {
   if (!valid) return
   try {
     await auth.login(form.username.trim(), form.password)
-    const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : auth.role === 'ADMIN' ? '/admin-users' : '/dashboard'
+    const requestedRedirect = typeof route.query.redirect === 'string' ? route.query.redirect : ''
+    const redirect = requestedRedirect.startsWith('/') && !requestedRedirect.startsWith('//') ? requestedRedirect : auth.role === 'ADMIN' ? '/admin-users' : '/dashboard'
     await router.replace(redirect)
   } catch {
     // The store keeps the backend error or demo credential error visible in the form.
