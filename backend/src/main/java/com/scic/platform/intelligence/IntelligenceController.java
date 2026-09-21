@@ -33,7 +33,8 @@ import java.time.LocalDate;
 public class IntelligenceController {
     private final IntelligenceService service;
     private final ScenarioService scenarios;
-    public IntelligenceController(IntelligenceService service, ScenarioService scenarios){this.service=service;this.scenarios=scenarios;}
+    private final AnalysisReportService reports;
+    public IntelligenceController(IntelligenceService service, ScenarioService scenarios, AnalysisReportService reports){this.service=service;this.scenarios=scenarios;this.reports=reports;}
 
     @GetMapping("/forecast-runs") @PreAuthorize("hasAnyRole('BUYER','MANAGER')")
     public ApiResponse<List<Map<String,Object>>> runs(@RequestParam(required=false) String materialCode,HttpServletRequest r){return ApiResponse.ok(service.forecastRuns(materialCode),RequestIds.get(r));}
@@ -67,6 +68,13 @@ public class IntelligenceController {
                                                          @RequestHeader(name="Idempotency-Key") String key,
                                                          @Valid @RequestBody ScenarioAdoptRequest b,
                                                          HttpServletRequest r){return ApiResponse.ok(scenarios.adopt(RequestIds.get(r),id,key,b.expectedVersion(),b.expectedDate(),b.priority(),b.note()),RequestIds.get(r));}
+
+    @GetMapping("/analysis-reports") @PreAuthorize("hasAnyRole('BUYER','MANAGER')")
+    public ApiResponse<List<Map<String,Object>>> reports(HttpServletRequest r){return ApiResponse.ok(reports.reports(),RequestIds.get(r));}
+    @GetMapping("/analysis-reports/{id}") @PreAuthorize("hasAnyRole('BUYER','MANAGER')")
+    public ApiResponse<Map<String,Object>> report(@PathVariable long id,HttpServletRequest r){return ApiResponse.ok(reports.report(id),RequestIds.get(r));}
+    @PostMapping("/analysis-reports") @PreAuthorize("hasAnyRole('BUYER','MANAGER')")
+    public ApiResponse<Map<String,Object>> generateReport(@RequestHeader(name="Idempotency-Key") String key,HttpServletRequest r){return ApiResponse.ok(reports.generate(RequestIds.get(r),key),RequestIds.get(r));}
 
     @GetMapping("/parse-records") @PreAuthorize("hasAnyRole('BUYER','SUPPLIER','MANAGER','ADMIN')")
     public ApiResponse<List<Map<String,Object>>> records(HttpServletRequest r){return ApiResponse.ok(service.parseRecords(),RequestIds.get(r));}

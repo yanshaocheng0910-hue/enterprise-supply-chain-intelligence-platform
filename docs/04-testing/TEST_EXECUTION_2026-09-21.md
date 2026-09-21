@@ -9,8 +9,8 @@
 
 | 检查 | 结果 | 证据/说明 |
 |---|---|---|
-| Spring Boot 集成测试 | **54 passed** | `PlatformIntegrationTest` 19 项、`AiFailureIntegrationTest` 35 项；0 failures / 0 errors / 0 skipped；Java 21、H2 MySQL 模式 |
-| FastAPI 测试 | **19 passed** | `ai-service/tests/`；覆盖 Schema、provider、原文证据校正、本地模型降级和预测契约 |
+| Spring Boot 集成测试 | **55 passed** | `PlatformIntegrationTest` 20 项、`AiFailureIntegrationTest` 35 项；0 failures / 0 errors / 0 skipped；Java 21、H2 MySQL 模式 |
+| FastAPI 测试 | **23 passed** | `ai-service/tests/`；覆盖 Schema、provider、原文证据校正、本地模型降级、预测和经营分析闭集契约 |
 | 前端类型检查与生产构建 | **通过** | `npm.cmd run build`；Vite 共转换 2303 个模块；保留大 chunk 非阻断警告 |
 | 静态交付检查 | **通过** | `scripts/verify.ps1 -StaticOnly` |
 | 本地模型评测 | **12/12 passed** | 三类各 4/5/3 条，平均 3266.396 ms；详见 `../05-experiments/AI_PARSE_LOCAL_EVAL_2026-09-21.md` |
@@ -20,6 +20,19 @@
 | 四角色当前工作树浏览器巡检 | **通过** | UI-13—UI-17；ADMIN、SUPPLIER、MANAGER、BUYER 及 390px 页面，内部验收不替代用户 UAT |
 | 最终 BUYER 工作台复核 | **通过** | 真实后端模式；控制台 0 errors / 0 warnings；UI-18：`docs/assets/screenshots/18-buyer-final-dashboard.png` |
 | 便携 MySQL 8.4.11 | **164/164 passed** | 干净库 V1—V5 迁移、四角色 RBAC、完整采购闭环、幂等/隔离/审计、原始数据不变及停用账号令牌撤销；`output/acceptance/mysql-uat-202609210244488FAB74.json` |
+
+> MySQL 的 164/164 是新增 V6 之前的独立证据，不能证明 V6 报告表已在 MySQL 复验；本轮 V6 仅在 H2 运行库和 H2 自动化中通过。
+
+## 1.1 经营分析报告增量执行
+
+| 检查 | 结果 | 事实证据 |
+|---|---|---|
+| 规则报告与安全边界 | 通过 | FastAPI 单测验证 7 章节、只读提示、远程 LLM 地址拒绝和规则降级 |
+| 本地 Qwen 闭集排序 | 通过 | 真实 `qwen2.5:1.5b` 返回闭集排序；最终报告 `provider=openai-compatible`、prompt=`analysis-v2-local-rank-rule-facts` |
+| 快照、幂等、权限与审计 | 通过 | Spring 集成测试 #20；同键一份、64 位指纹、生成审计、SUPPLIER 403 |
+| 真实后端 API | 通过 | 生成 7 章节、3 条行动、64 位指纹；模型错误输出曾被安全拒绝并规则降级，收窄职责后真实本地模型路径成功 |
+| BUYER 页面按钮 | 通过 | POST 200，历史从 3 份增至 4 份，显示“本地模型辅助排序”；控制台 0 errors / 0 warnings |
+| 桌面与 390px | 通过 | 1440px、390px 均无整页横向溢出；计算字体 Noto Sans SC Variable；UI-19/UI-20 |
 | Docker Compose | **未执行** | 本机没有 Docker；Compose 网络、变量、Dockerfile 和 Nginx 只完成静态检查，不据此宣称容器部署通过 |
 | 用户个人 UAT | **待用户执行** | 后续反馈登记到 `docs/00-governance/UAT_FEEDBACK.md` |
 

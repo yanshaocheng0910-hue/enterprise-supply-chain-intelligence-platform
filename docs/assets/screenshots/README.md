@@ -24,5 +24,7 @@
 | UI-16 | `16-buyer-local-llm-current.png` | `buyer` / AI 语义解析 | 2026-09-21 当前工作树；本地 Qwen provider、字段证据、人工确认和规则降级说明 |
 | UI-17 | `17-buyer-local-llm-mobile.png` | `buyer` / 390px AI 语义解析 | 2026-09-21 当前工作树；窄屏布局、内容可读性和无整页横向溢出 |
 | UI-18 | `18-buyer-final-dashboard.png` | `buyer` / 最终总览复核 | 2026-09-21 本轮最终运行页面，后端连接模式与真实数据；控制台 0 errors / 0 warnings |
+| UI-19 | `19-analysis-report-desktop.png` | `buyer` / 经营分析报告 1440px | 真实本地 Qwen 辅助排序；统计快照、模型/提示协议、数据指纹、优先行动和只读边界可见 |
+| UI-20 | `20-analysis-report-mobile.png` | `buyer` / 经营分析报告 390px | 窄屏下报告摘要、事实网格和本地模型标识可读；页面宽度 375/375，无整页横向溢出 |
 
-UI-01—UI-07 仍只证明 RC2 当时状态；UI-08—UI-10 是 2026-09-20 证据；UI-11—UI-18 是 2026-09-21 本地模型、字体和四角色当前工作树证据。对应巡检控制台为 `0 errors / 0 warnings`。本索引证明内部候选版巡检，不代表用户个人 UAT 已通过。
+UI-01—UI-07 仍只证明 RC2 当时状态；UI-08—UI-10 是 2026-09-20 证据；UI-11—UI-20 是 2026-09-21 本地模型、字体、四角色和经营分析当前工作树证据。对应巡检控制台为 `0 errors / 0 warnings`。本索引证明内部候选版巡检，不代表用户个人 UAT 已通过。

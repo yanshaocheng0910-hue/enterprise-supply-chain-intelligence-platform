@@ -62,6 +62,13 @@ Spring 统一返回 `{success,data,error,requestId,timestamp}`；FastAPI 返回�
 - `PARTIALLY_RECEIVED` 表示分批收货尚未全部合格入库；合格数量累计更新订单与库存，拒收数量需要原因且不计入已收合格数量。订单全部合格收齐后才可创建对账。
 - `START_RECONCILIATION` 不是订单直接状态命令；对账经 `POST /api/v1/collaboration/reconciliations` 建立，再使用对账动作处理。
 
+### 2.4 供应链经营分析报告
+
+- `GET /api/v1/intelligence/analysis-reports`、`GET /api/v1/intelligence/analysis-reports/{id}`：BUYER/MANAGER 读取快照列表与详情；SUPPLIER/ADMIN 无企业经营报告权限。
+- `POST /api/v1/intelligence/analysis-reports`：BUYER/MANAGER，Header 必须包含 `Idempotency-Key`；后端汇总订单、库存、供应商、对账和预警统计，计算 SHA-256 数据指纹后调用 FastAPI。
+- FastAPI `/internal/v1/analysis-report` 只接收严格统计 Schema，不连接业务数据库。Qwen 只提供闭集章节排序；精确数值、事实文本和行动路由由规则生成。模型不可用或输出越界时返回明确的 `provider=rule` 和 `fallback_reason`。
+- 报告写入独立快照和操作审计，不修改需求、计划、订单、库存、收货或对账状态。同一幂等键重放返回原报告。
+
 ## 3. FastAPI parse
 
 `POST /internal/v1/parse` 与 `POST /api/v1/parse` 请求：

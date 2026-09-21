@@ -29,6 +29,8 @@
 | TC-AI-004 | 三类白名单解析 | intent、fields、缺失字段、warnings、provider、确认标记完整 | FastAPI 测试已覆盖 |
 | TC-AI-005 | 未配置 LLM | provider 为 `rule`，不伪装大模型 | FastAPI 测试已覆盖 |
 | TC-AI-006 | parse confidence | 含“仅供参考”说明，不触发自动业务动作 | FastAPI 契约已覆盖；业务 UAT 待执行 |
+| TC-AI-007 | 本地经营分析事实边界 | Qwen 只排序闭集章节；数值、风险事实与行动由规则生成；非法模型输出降级，不写业务单据 | FastAPI 规则/远程拒绝/本地闭集测试与真实 Qwen HTTP 通过 |
+| TC-AI-008 | 经营报告快照与权限 | 同幂等键只保存一份；快照、64 位指纹和审计可追溯；SUPPLIER 不可读取 | Spring Boot 集成测试 #20 通过；BUYER 真实浏览器通过 |
 | TC-FC-001 | history 递归预测 | 固定 14 个连续日期，forecast 非负 | FastAPI 测试已覆盖 |
 | TC-FC-002 | MA7 降级 | 样本不足/无 XGBoost 时返回 `model=ma7` 和原因 | FastAPI 测试已覆盖 |
 | TC-FC-003 | XGBoost 选择 | 仅当平均验证 MAE 低于 MA7 且 3 折至少赢 2 折时选用 | `DEMO_SYNTHETIC` 长序列实测选择 XGBoost，3/3 折胜；仍需用户 UAT |
@@ -71,8 +73,8 @@ AI 测试集必须区分原文、白名单意图、字段真值、缺失字段�
 
 | 检查 | 结果 | 证据 |
 |---|---|---|
-| FastAPI 基础测试 | 2026-09-21：19 passed | `ai-service/tests`、本轮 pytest 输出；应从 `D:\论文\ai-service` 执行 |
-| Spring Boot 集成测试 | 2026-09-21：54 passed，0 failures，0 errors，0 skipped；业务集成 19 项、AI 故障集成 35 项 | `backend/target/surefire-reports/TEST-*.xml`；执行明细见 `TEST_EXECUTION_2026-09-21.md` |
+| FastAPI 基础测试 | 2026-09-21：23 passed | `ai-service/tests`、本轮 pytest 输出；应从 `D:\论文\ai-service` 执行 |
+| Spring Boot 集成测试 | 2026-09-21：55 passed，0 failures，0 errors，0 skipped；业务集成 20 项、AI 故障集成 35 项 | `backend/target/surefire-reports/TEST-*.xml`；执行明细见 `TEST_EXECUTION_2026-09-21.md` |
 | 真实 MySQL 8.4.11 | 164/164；干净库迁移与完整业务闭环、RBAC、幂等、范围隔离、审计、令牌撤销及数据保全通过 | `output/acceptance/mysql-uat-202609210244488FAB74.json` |
 | 当前工作树服务健康检查 | 本地 AI、Backend、Frontend 三服务均健康 | 本轮运行态检查；临时日志索引见 `TEST_EXECUTION_2026-09-20.md` |
 | 当前工作树浏览器检查 | ADMIN、SUPPLIER、MANAGER、BUYER 及 390px BUYER 页面已复核；最终 BUYER 总览控制台 0 errors / 0 warnings | `docs/assets/screenshots/13-admin-current.png`—`18-buyer-final-dashboard.png` |

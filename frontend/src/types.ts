@@ -450,3 +450,51 @@ export interface ListResult<T> {
   records: T[]
   total: number
 }
+
+export interface AnalysisReportSummary {
+  id: string | number
+  reportNo: string
+  asOfTime: string
+  provider: 'rule' | 'openai-compatible'
+  modelName: string
+  promptVersion: string
+  fallbackReason?: string
+  dataFingerprint: string
+  createdAt: string
+  createdByName: string
+}
+
+export interface AnalysisReport extends AnalysisReportSummary {
+  warnings: string[]
+  sections: Array<{
+    key: 'executive_summary' | 'demand_inventory' | 'supplier_fulfillment' | 'reconciliation_finance' | 'warning_risk' | 'recommendations' | 'boundary'
+    title: string
+    content: string
+  }>
+  priorityActions: Array<{
+    code: string
+    level: 'HIGH' | 'MEDIUM' | 'LOW'
+    title: string
+    rationale: string
+    route: string
+  }>
+  context: {
+    asOfTime: string
+    timezone: string
+    scope: string
+    metrics: {
+      activeOrders: number
+      overdueOrders: number
+      inventoryShortages: number
+      openWarnings: number
+      highWarnings: number
+      pendingPlans: number
+      pendingReconciliations: number
+      reconciliationDifferenceAmount: number
+      rejectedQuantity: number
+      activeSuppliers: number
+      averageOnTimeRate: number
+    }
+    topRisks: Array<{ kind: string; label: string; severity: string; createdAt: string }>
+  }
+}

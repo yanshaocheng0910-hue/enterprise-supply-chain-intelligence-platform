@@ -36,6 +36,10 @@ public class AiGateway {
         return post("/internal/v1/forecast", body, requestId);
     }
 
+    public Map<String, Object> analysisReport(Map<String, Object> body, String requestId) {
+        return post("/internal/v1/analysis-report", body, requestId);
+    }
+
     @SuppressWarnings("unchecked")
     private Map<String, Object> post(String path, Map<String, Object> body, String requestId) {
         try {

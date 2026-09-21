@@ -62,6 +62,7 @@
 | `forecast_result` | `run_id`、`forecast_date`、`predicted_qty`、原始/区间值、`suggested_order_qty`、`warning_code`、`postprocess_note` | 每运行每日期唯一；保存后处理说明 |
 | `procurement_scenario` | `scenario_no/name`、`material_id`、`forecast_run_id`、输入/来源/结果 JSON 快照、`data_fingerprint`、基准/模拟建议量与金额、`risk_level`、`status`、`version`、模拟/采纳幂等键、`adopted_demand_id`、创建/过期/采纳时间 | 冻结采购情景推演证据；`PREVIEW/ADOPTED/EXPIRED`；模拟不改业务事实，采纳后关联唯一需求 |
 | `ai_parse_record` | `parse_no`、`task_type`、`schema_version`、`input_text`、上下文、`provider/model_name`、`prompt_version`、原始/规范 JSON、校验标记、`final_status`、确认人/时间、`request_id` | 受限解析预览、确认和审计 |
+| `supply_chain_analysis_report` | `report_no`、`as_of_time`、`provider/model_name/prompt_version`、`fallback_reason`、`data_fingerprint`、`context_json`、`report_json`、`idempotency_key`、`created_by/created_at` | V6 经营分析只读快照；事实与报告同时冻结，同键唯一，报告生成可复核 |
 | `warning_record` | `warning_no`、`warning_type`、`severity`、目标、标题、原因/建议、`status`、`source_key`（唯一）、`condition_active`、`last_detected_at`、`updated_at`、处理人/结果 | 缺货、延期、差异等规则/事件风险闭环；唯一来源键用于去重，条件状态用于区分人工关闭与风险解除 |
 | `operation_log` | `request_id`、操作者/角色、`action_code`、目标、前后状态、`detail_text`、时间 | 关键操作审计 |
 
@@ -74,6 +75,8 @@
 `V4__decision_loop_and_warning_rules.sql` 为 V1—V3 之后的增量迁移，执行时新增预测建议状态/版本/说明字段、`purchase_demand.forecast_run_id` 外键及唯一索引、预警条件与来源字段及唯一索引，并增加 `purchase_order(plan_id)` 唯一索引。迁移还把已有计划引用的需求从 `DRAFT` 校正为 `PLANNED`，把已有订单关联的计划从 `APPROVED` 校正为 `ORDER_CREATED`。
 
 `V5__procurement_scenario_simulation.sql` 新增 `procurement_scenario`，保存输入、事实和结果快照、数据指纹、结果摘要、状态/版本、两类幂等键和采纳需求引用。当前 D 盘 H2 运行库已由 Flyway 升级到 V5，Spring Boot 54 项集成测试通过；便携 MySQL 8.4.11 干净库也已执行 V1—V5 并通过 164 项独立验收。Docker Compose 容器复现尚未执行。
+
+`V6__supply_chain_analysis_report.sql` 新增 `supply_chain_analysis_report`。当前 D 盘 H2 运行库已升级到 V6，最新 Spring Boot 55 项通过；既有 MySQL 164/164 报告早于 V6，仅证明 V1—V5，V6 的 MySQL 与 Compose 兼容性仍待单独复验。
 
 ## 5. CSV 导入字段字典
 

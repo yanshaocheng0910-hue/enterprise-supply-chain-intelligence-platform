@@ -22,10 +22,13 @@ from .models import (
     ForecastRequest,
     ForecastResponse,
     HealthResponse,
+    AnalysisReportRequest,
+    AnalysisReportResponse,
     ParseRequest,
     ParseResponse,
 )
 from .parsing import UnsupportedIntentError, parse_text
+from .reporting import generate_analysis_report
 
 
 LOGGER = logging.getLogger("ai-service.api")
@@ -71,7 +74,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     configure_logging(active_settings.log_level)
     app = FastAPI(
         title="供应链 AI 服务",
-        description="仅提供三类中文结构化解析与 14 日物料需求预测；不持有业务数据库凭据。",
+        description="提供受控语义解析、14 日预测和只读经营分析；不持有业务数据库凭据。",
         version=active_settings.service_version,
     )
     app.state.settings = active_settings
@@ -229,6 +232,29 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             },
         )
         return response
+
+    @app.post(
+        "/internal/v1/analysis-report",
+        response_model=AnalysisReportResponse,
+        dependencies=[Depends(_auth_dependency)],
+        tags=["ai"],
+        summary="内部调用：生成只读供应链经营分析报告",
+        include_in_schema=False,
+    )
+    @app.post(
+        "/api/v1/analysis-report",
+        response_model=AnalysisReportResponse,
+        dependencies=[Depends(_auth_dependency)],
+        tags=["ai"],
+        summary="生成只读供应链经营分析报告",
+    )
+    async def analysis_report_endpoint(request: Request, payload: AnalysisReportRequest) -> AnalysisReportResponse:
+        result = await generate_analysis_report(payload, active_settings)
+        LOGGER.info(
+            "analysis_report_completed",
+            extra={"request_id": _request_id(request), "provider": result.provider},
+        )
+        return result
 
     return app
 

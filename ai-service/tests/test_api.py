@@ -78,3 +78,25 @@ def test_forecast_lead_time_over_horizon_has_stable_error(client, service_header
     )
     assert response.status_code == 422
     assert response.json()["detail"]["code"] == "HORIZON_INSUFFICIENT"
+
+
+def test_analysis_report_endpoint_requires_strict_grounded_snapshot(client, service_headers):
+    payload = {
+        "as_of_time": "2026-09-21T12:00:00+08:00",
+        "timezone": "Asia/Shanghai",
+        "scope": "企业全局供应链业务库，只读统计快照",
+        "data_fingerprint": "b" * 64,
+        "metrics": {
+            "active_orders": 1, "overdue_orders": 0, "inventory_shortages": 0,
+            "open_warnings": 0, "high_warnings": 0, "pending_plans": 0,
+            "pending_reconciliations": 0, "reconciliation_difference_amount": 0,
+            "rejected_quantity": 0, "active_suppliers": 1, "average_on_time_rate": 0.95,
+        },
+        "top_risks": [],
+    }
+    response = client.post("/internal/v1/analysis-report", json=payload, headers=service_headers)
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["provider"] == "rule"
+    assert len(body["sections"]) == 7
+    assert body["priority_actions"][0]["code"] == "MONITOR_OPERATIONS"

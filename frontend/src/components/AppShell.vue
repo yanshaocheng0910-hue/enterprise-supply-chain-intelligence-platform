@@ -99,7 +99,7 @@ const groups: NavGroup[] = [
   { label: '决策与预警', items: [{ label: '14 天需求预测', path: '/forecast', icon: TrendCharts, roles: ['BUYER', 'MANAGER'] }, { label: '采购情景推演', path: '/scenario-simulation', icon: Operation, roles: ['BUYER', 'MANAGER'] }] },
   { label: '采购执行', items: [{ label: '采购需求', path: '/purchase-demands', icon: Tickets, roles: ['BUYER', 'MANAGER'] }, { label: '采购计划', path: '/purchase-plans', icon: Calendar, roles: ['BUYER', 'MANAGER'] }, { label: '采购订单', path: '/orders', icon: ShoppingBag, roles: ['BUYER', 'SUPPLIER', 'MANAGER'] }] },
   { label: '协同履约', items: [{ label: '交付通知', path: '/deliveries', icon: Van, roles: ['BUYER', 'SUPPLIER', 'MANAGER'] }, { label: '收货', path: '/receipts', icon: Checked, roles: ['BUYER', 'SUPPLIER', 'MANAGER'] }, { label: '对账', path: '/reconciliation', icon: Coin, roles: ['BUYER', 'SUPPLIER', 'MANAGER'] }] },
-  { label: '受控智能', items: [{ label: 'AI 语义解析', path: '/ai-parse', icon: DataAnalysis, roles: ['BUYER', 'SUPPLIER'] }] },
+  { label: '受控智能', items: [{ label: '经营分析报告', path: '/analysis-reports', icon: Files, roles: ['BUYER', 'MANAGER'] }, { label: 'AI 语义解析', path: '/ai-parse', icon: DataAnalysis, roles: ['BUYER', 'SUPPLIER'] }] },
   { label: '系统管理', items: [{ label: '用户与角色', path: '/admin-users', icon: Setting, roles: ['ADMIN'] }, { label: '审计记录', path: '/audit', icon: Document, roles: ['ADMIN', 'MANAGER'] }] },
 ]
 

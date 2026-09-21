@@ -9,7 +9,7 @@ service.
 from __future__ import annotations
 
 import math
-from datetime import date
+from datetime import date, datetime
 from typing import Any, Literal
 
 from pydantic import (
@@ -230,6 +230,66 @@ class ForecastResponse(StrictModel):
     sequence: list[ForecastPoint] = Field(min_length=14, max_length=14)
     warnings: list[str]
     postprocessing: PostprocessingInfo
+
+
+class AnalysisMetrics(StrictModel):
+    active_orders: int = Field(ge=0)
+    overdue_orders: int = Field(ge=0)
+    inventory_shortages: int = Field(ge=0)
+    open_warnings: int = Field(ge=0)
+    high_warnings: int = Field(ge=0)
+    pending_plans: int = Field(ge=0)
+    pending_reconciliations: int = Field(ge=0)
+    reconciliation_difference_amount: float = Field(ge=0)
+    rejected_quantity: float = Field(ge=0)
+    active_suppliers: int = Field(ge=0)
+    average_on_time_rate: float = Field(ge=0, le=1)
+
+
+class AnalysisRiskFact(StrictModel):
+    kind: str = Field(min_length=1, max_length=64)
+    label: str = Field(min_length=1, max_length=255)
+    severity: str = Field(min_length=1, max_length=16)
+    created_at: datetime
+
+
+class AnalysisReportRequest(StrictModel):
+    as_of_time: datetime
+    timezone: Literal["Asia/Shanghai"]
+    scope: Literal["企业全局供应链业务库，只读统计快照"]
+    metrics: AnalysisMetrics
+    top_risks: list[AnalysisRiskFact] = Field(max_length=8)
+    data_fingerprint: str = Field(pattern=r"^[0-9a-f]{64}$")
+
+
+class AnalysisSection(StrictModel):
+    key: Literal[
+        "executive_summary", "demand_inventory", "supplier_fulfillment",
+        "reconciliation_finance", "warning_risk", "recommendations", "boundary",
+    ]
+    title: str = Field(min_length=1, max_length=40)
+    content: str = Field(min_length=1, max_length=800)
+
+
+class AnalysisAction(StrictModel):
+    code: Literal[
+        "RESOLVE_HIGH_WARNINGS", "EXPEDITE_OVERDUE_ORDERS", "REPLENISH_SHORTAGE",
+        "REVIEW_RECON_DIFFERENCE", "APPROVE_PENDING_PLANS", "MONITOR_OPERATIONS",
+    ]
+    level: Literal["HIGH", "MEDIUM", "LOW"]
+    title: str = Field(min_length=1, max_length=80)
+    rationale: str = Field(min_length=1, max_length=300)
+    route: str = Field(min_length=1, max_length=80)
+
+
+class AnalysisReportResponse(StrictModel):
+    provider: ParseProvider
+    model_name: str
+    prompt_version: str
+    fallback_reason: str | None = None
+    warnings: list[str]
+    sections: list[AnalysisSection] = Field(min_length=7, max_length=7)
+    priority_actions: list[AnalysisAction] = Field(min_length=1, max_length=6)
 
 
 class HealthResponse(StrictModel):

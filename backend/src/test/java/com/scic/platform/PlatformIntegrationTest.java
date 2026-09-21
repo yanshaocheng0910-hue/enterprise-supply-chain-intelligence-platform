@@ -54,6 +54,7 @@ class PlatformIntegrationTest {
                 "fields", Map.of("material_code", "MAT-BOX-05", "quantity", 20),
                 "missing_fields", List.of("required_date"),
                 "warnings", List.of()));
+        when(aiGateway.analysisReport(anyMap(), anyString())).thenReturn(analysisReportResponse());
         Integer users = jdbc.queryForObject("select count(*) from sys_user where username='supplier2'", Integer.class);
         if (users != null && users == 0) jdbc.update("insert into sys_user(username,display_name,password_hash,role_code,supplier_id) values('supplier2','供应商·林青','{noop}123456','SUPPLIER',2)");
         Integer orders = jdbc.queryForObject("select count(*) from purchase_order where order_no='PO-SCOPE-002'", Integer.class);
@@ -553,6 +554,40 @@ class PlatformIntegrationTest {
         mvc.perform(post("/api/v1/auth/login").contentType(MediaType.APPLICATION_JSON)
                         .content("{\"username\":\"" + username + "\",\"password\":\"12345678\"}"))
                 .andExpect(status().isUnauthorized()).andExpect(jsonPath("$.error.code").value("INVALID_CREDENTIALS"));
+    }
+
+    @Test @Order(20)
+    void localAnalysisReportPersistsGroundedSnapshotAndIsIdempotent() throws Exception {
+        String buyer = token("buyer", "123456");
+        String key = "analysis-report-020";
+        JsonNode first = postJson("/api/v1/intelligence/analysis-reports", buyer, "{}", key);
+        JsonNode second = postJson("/api/v1/intelligence/analysis-reports", buyer, "{}", key);
+        assertThat(second.path("id").asLong()).isEqualTo(first.path("id").asLong());
+        assertThat(first.path("sections").size()).isEqualTo(7);
+        assertThat(first.path("context").path("metrics").path("active_orders").asInt()).isGreaterThanOrEqualTo(0);
+        assertThat(first.path("data_fingerprint").asText()).hasSize(64);
+        assertThat(jdbc.queryForObject("select count(*) from supply_chain_analysis_report where idempotency_key=?", Long.class, key)).isEqualTo(1);
+        assertThat(jdbc.queryForObject("select count(*) from operation_log where action_code='GENERATE_ANALYSIS_REPORT' and target_id=?", Long.class, first.path("id").asLong())).isEqualTo(1);
+
+        String supplier = token("supplier", "123456");
+        mvc.perform(get("/api/v1/intelligence/analysis-reports").header("Authorization", "Bearer " + supplier))
+                .andExpect(status().isForbidden()).andExpect(jsonPath("$.error.code").value("FORBIDDEN"));
+    }
+
+    private static Map<String, Object> analysisReportResponse() {
+        List<Map<String, Object>> sections = List.of(
+                Map.of("key", "executive_summary", "title", "经营摘要", "content", "经营状态需要持续复核。"),
+                Map.of("key", "demand_inventory", "title", "需求与库存", "content", "库存风险以事实快照为准。"),
+                Map.of("key", "supplier_fulfillment", "title", "供应商与履约", "content", "交付情况需结合订单核对。"),
+                Map.of("key", "reconciliation_finance", "title", "对账与资金风险", "content", "差异需回到明细处理。"),
+                Map.of("key", "warning_risk", "title", "异常与预警", "content", "预警尚不代表处置完成。"),
+                Map.of("key", "recommendations", "title", "处置建议", "content", "建议按风险优先级推进。"),
+                Map.of("key", "boundary", "title", "分析边界", "content", "报告只读且不会自动改变业务。"));
+        return Map.of(
+                "provider", "rule", "model_name", "supply-chain-rule-report-v1",
+                "prompt_version", "analysis-v2-local-rank-rule-facts", "fallback_reason", "测试规则回退",
+                "warnings", List.of("报告只读"), "sections", sections,
+                "priority_actions", List.of(Map.of("code", "MONITOR_OPERATIONS", "level", "LOW", "title", "保持监测", "rationale", "当前保持日常复核。", "route", "/dashboard")));
     }
 
     private JsonNode postJson(String path, String token, String body, String idempotencyKey) throws Exception {
