@@ -340,6 +340,41 @@ export interface PurchaseOrder {
   supplierCode?: string
 }
 
+export interface OrderTimelineStage {
+  key: 'ORDER' | 'CONFIRMATION' | 'DELIVERY' | 'RECEIPT' | 'RECONCILIATION' | 'COMPLETED'
+  label: string
+  status: 'DONE' | 'CURRENT' | 'PENDING' | 'EXCEPTION'
+}
+
+export interface OrderTimelineEvent {
+  eventKey: string
+  source: 'AUDIT_LOG' | 'BUSINESS_RECORD' | 'INVENTORY_TRANSACTION'
+  stage: string
+  title: string
+  description: string
+  beforeState?: string
+  afterState?: string
+  actorName?: string
+  actorRole?: string
+  targetType: string
+  targetId?: string | number
+  referenceNo?: string
+  eventAt: string
+  requestId?: string
+}
+
+export interface OrderTimeline {
+  orderId: string | number
+  orderNo: string
+  supplierName: string
+  currentStatus: PurchaseOrder['status']
+  expectedArrivalDate?: string
+  generatedAt: string
+  readOnly: boolean
+  stages: OrderTimelineStage[]
+  events: OrderTimelineEvent[]
+}
+
 export interface DeliveryNotice {
   id: string
   noticeNo: string

@@ -69,6 +69,7 @@ Spring 统一返回 `{success,data,error,requestId,timestamp}`；FastAPI 返回�
 - 收货请求仅 BUYER 可写，需提供 `Idempotency-Key`、订单版本、订单明细及本次实收/合格/拒收数量，并关联 `ARRIVED` 到货通知。
 - `PARTIALLY_RECEIVED` 表示分批收货尚未全部合格入库；合格数量累计更新订单与库存，拒收数量需要原因且不计入已收合格数量。订单全部合格收齐后才可创建对账。
 - `START_RECONCILIATION` 不是订单直接状态命令；对账经 `POST /api/v1/collaboration/reconciliations` 建立，再使用对账动作处理。
+- `GET /api/v1/procurement/orders/{id}/timeline`：BUYER/MANAGER 和订单绑定供应商可读，ADMIN 无业务权限。返回六阶段状态和按时间排序事件；事件来源区分业务记录、审计日志、库存流水。接口不新增日志或改变业务状态。
 
 ### 2.5 供应链经营分析报告
 

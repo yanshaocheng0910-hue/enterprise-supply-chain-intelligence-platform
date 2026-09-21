@@ -27,9 +27,11 @@ import java.util.Map;
 @RequestMapping("/api/v1/procurement")
 public class ProcurementController {
     private final ProcurementService service;
+    private final OrderTimelineService timelineService;
 
-    public ProcurementController(ProcurementService service) {
+    public ProcurementController(ProcurementService service, OrderTimelineService timelineService) {
         this.service = service;
+        this.timelineService = timelineService;
     }
 
     @GetMapping("/demands")
@@ -89,6 +91,12 @@ public class ProcurementController {
     @PreAuthorize("hasAnyRole('BUYER','SUPPLIER','MANAGER')")
     public ApiResponse<Map<String, Object>> order(@PathVariable long id, HttpServletRequest request) {
         return ApiResponse.ok(service.order(id), RequestIds.get(request));
+    }
+
+    @GetMapping("/orders/{id}/timeline")
+    @PreAuthorize("hasAnyRole('BUYER','SUPPLIER','MANAGER')")
+    public ApiResponse<Map<String, Object>> orderTimeline(@PathVariable long id, HttpServletRequest request) {
+        return ApiResponse.ok(timelineService.timeline(id), RequestIds.get(request));
     }
 
     @PostMapping("/orders/{id}/actions")

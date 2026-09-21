@@ -9,7 +9,7 @@
 
 | 检查 | 结果 | 证据/说明 |
 |---|---|---|
-| Spring Boot 集成测试 | **56 passed** | `PlatformIntegrationTest` 21 项、`AiFailureIntegrationTest` 35 项；0 failures / 0 errors / 0 skipped；Java 21、H2 MySQL 模式 |
+| Spring Boot 集成测试 | **57 passed** | `PlatformIntegrationTest` 22 项、`AiFailureIntegrationTest` 35 项；0 failures / 0 errors / 0 skipped；Java 21、H2 MySQL 模式 |
 | FastAPI 测试 | **23 passed** | `ai-service/tests/`；覆盖 Schema、provider、原文证据校正、本地模型降级、预测和经营分析闭集契约 |
 | 前端类型检查与生产构建 | **通过** | `npm.cmd run build`；Vite 共转换 2303 个模块；保留大 chunk 非阻断警告 |
 | 静态交付检查 | **通过** | `scripts/verify.ps1 -StaticOnly` |
@@ -45,6 +45,17 @@
 | 前端生产构建 | 通过 | `npm.cmd run build`，Vite 转换 2309 个模块 |
 | 桌面与 390px | 通过 | 页面宽度分别与视口一致；Noto Sans SC Variable 生效；UI-21/UI-22 |
 | 浏览器控制台 | 通过 | 新会话 0 errors / 0 warnings |
+
+## 1.3 订单履约证据链增量执行
+
+| 检查 | 结果 | 事实证据 |
+|---|---|---|
+| 证据聚合 | 通过 | 真实完成订单 `PO-202608-001` 返回 17 条事件，包含业务记录、审计日志与库存流水 |
+| 范围与只读 | 通过 | 集成测试 #22 验证绑定供应商可读、其他供应商订单 404、ADMIN 403、读取前后日志数量不变 |
+| 状态事实 | 通过 | 创建节点固定为 `PENDING_CONFIRMATION`；后续状态由历史审计迁移展示，当前阶段由订单真实状态计算 |
+| 前端生产构建 | 通过 | `npm.cmd run build`，Vite 转换 2309 个模块 |
+| 桌面与 390px | 通过 | 1440px 抽屉可读；390px 页面与抽屉均 390/390，无横向溢出；UI-23/UI-24 |
+| 浏览器控制台 | 通过 | 服务重启后的全新会话 0 errors / 0 warnings |
 
 ## 2. 本地大模型运行事实
 

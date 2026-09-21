@@ -195,3 +195,13 @@
 - 前端新增“我的待办”、摘要、优先级/类别筛选和原业务入口；所有处理仍回原模块，保留原权限、版本、幂等和状态机校验。
 - Spring Boot 56/56、前端生产构建通过；BUYER 桌面和 390px 浏览器无整页横向溢出，离线 Noto Sans SC 生效，控制台 0 errors / 0 warnings。
 - 证据：`docs/assets/screenshots/21-work-queue-desktop.png`、`22-work-queue-mobile.png`。该内部验证不代替用户个人 UAT。
+
+---
+
+## 2026-09-21（Asia/Shanghai）— 订单履约证据链
+
+- 新增订单六阶段追踪，把订单、交付、收货、入库和对账从独立页面串成可核验业务证据链。
+- 后端按订单聚合业务记录、`operation_log` 和 `inventory_transaction`；供应商只读绑定范围，ADMIN 不可读，接口本身不写审计、不改状态。
+- 浏览器以完成订单 `PO-202608-001` 读取 17 条事件；复核时发现创建节点不应使用当前完成状态、历史动作代码不应显示英文，修正后再次通过 57/57 测试和真实运行复核。
+- 前端生产构建通过；1440px 与 390px 抽屉无横向溢出，Noto Sans SC 生效，最终新会话控制台 0 errors / 0 warnings。
+- 证据：`docs/assets/screenshots/23-order-timeline-desktop.png`、`24-order-timeline-mobile.png`。用户个人 UAT、V6 MySQL 与 Compose 边界不变。

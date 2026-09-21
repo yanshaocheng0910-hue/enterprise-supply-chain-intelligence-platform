@@ -597,6 +597,32 @@ class PlatformIntegrationTest {
         assertThat(jdbc.queryForObject("select count(*) from operation_log", Long.class)).isEqualTo(logsBefore);
     }
 
+    @Test @Order(22)
+    void orderTimelineIsTraceableScopedAndReadonly() throws Exception {
+        long ownOrderId = jdbc.queryForObject("select id from purchase_order where order_no='PO-202608-001'", Long.class);
+        long otherOrderId = jdbc.queryForObject("select id from purchase_order where order_no='PO-SCOPE-002'", Long.class);
+        long logsBefore = jdbc.queryForObject("select count(*) from operation_log", Long.class);
+
+        JsonNode buyerTimeline = getData("/api/v1/procurement/orders/" + ownOrderId + "/timeline", token("buyer", "123456"));
+        assertThat(buyerTimeline.path("order_no").asText()).isEqualTo("PO-202608-001");
+        assertThat(buyerTimeline.path("stages").size()).isEqualTo(6);
+        assertThat(buyerTimeline.path("events").isArray()).isTrue();
+        assertThat(buyerTimeline.path("events").size()).isGreaterThan(0);
+        assertThat(buyerTimeline.path("events").get(0).path("after_state").asText()).isEqualTo("PENDING_CONFIRMATION");
+        assertThat(buyerTimeline.path("read_only").asBoolean()).isTrue();
+
+        mvc.perform(get("/api/v1/procurement/orders/{id}/timeline", ownOrderId)
+                        .header("Authorization", "Bearer " + token("supplier", "123456")))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.supplier_name").value("华东精密电子有限公司"));
+        mvc.perform(get("/api/v1/procurement/orders/{id}/timeline", otherOrderId)
+                        .header("Authorization", "Bearer " + token("supplier", "123456")))
+                .andExpect(status().isNotFound()).andExpect(jsonPath("$.error.code").value("RESOURCE_NOT_FOUND"));
+        mvc.perform(get("/api/v1/procurement/orders/{id}/timeline", ownOrderId)
+                        .header("Authorization", "Bearer " + token("admin", "123456")))
+                .andExpect(status().isForbidden());
+        assertThat(jdbc.queryForObject("select count(*) from operation_log", Long.class)).isEqualTo(logsBefore);
+    }
+
     private static Map<String, Object> analysisReportResponse() {
         List<Map<String, Object>> sections = List.of(
                 Map.of("key", "executive_summary", "title", "经营摘要", "content", "经营状态需要持续复核。"),
