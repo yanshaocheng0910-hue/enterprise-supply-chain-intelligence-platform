@@ -51,3 +51,18 @@
 2. 真实 MySQL 8 已独立复现；当前机器仍缺少 Docker，Compose 容器启动、容器间网络、Nginx 代理和容器健康检查尚未实测。
 3. 本地评测集只有 12 条，是链路与回归样本，不代表生产准确率；论文实验应继续扩充歧义、缺字段、越权和提示注入样本。
 4. 示例数据标记为 `DEMO_SYNTHETIC`，不得描述为企业真实生产数据。
+
+## 6. 首批 UAT 修复增量回归
+
+| 检查 | 结果 | 说明 |
+|---|---|---|
+| 无效会话恢复 | 通过 | BUYER 登录后将访问 token 置为无效并刷新仓库页，自动跳转 `/login?reason=expired&redirect=%2Fwarehouses`，token/session 已清除，登录提示可见 |
+| 错误态视觉 | 通过 | 通用警告图标固定 16px；仓库错误、加载、空态互斥；未再出现巨型感叹号覆盖页面 |
+| 系统文件选择 | 通过 | 点击“选择 CSV 文件”触发浏览器 file chooser；选择 `samples/import/inventory.csv` 后显示文件名、155 B 和可用提交按钮 |
+| multipart 预览 | 通过 | 修复全局 JSON 头后，`POST /api/v1/imports/preview` 成功；3 行库存数据返回 2 条真实 `REFERENCE_NOT_FOUND`，无控制台错误 |
+| 模板下载 | 通过 | 页面真实下载 `inventory.csv`，表头和 3 行样例与导入契约一致；另外 3 类模板随包提供 |
+| 错误报告下载 | 通过 | 真实下载 `import-errors-IMP-*.csv`，字段为 row/field/code/message/raw，中文内容和服务端错误一致 |
+| 响应式与字体 | 通过 | 390px 下 `documentElement.scrollWidth=innerWidth=390`；body 计算字体首选 Noto Sans SC Variable |
+| 自动化回归 | 通过 | Spring Boot 54/54；前端 `vue-tsc --noEmit` 与 Vite 生产构建通过 |
+
+增量回归关闭的是 `UAT-090-001/002` 的内部修复验证，最终状态仍为“待用户复验”，不等于完整用户 UAT 通过。
