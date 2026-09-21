@@ -9,7 +9,7 @@
 
 | 检查 | 结果 | 证据/说明 |
 |---|---|---|
-| Spring Boot 集成测试 | **55 passed** | `PlatformIntegrationTest` 20 项、`AiFailureIntegrationTest` 35 项；0 failures / 0 errors / 0 skipped；Java 21、H2 MySQL 模式 |
+| Spring Boot 集成测试 | **56 passed** | `PlatformIntegrationTest` 21 项、`AiFailureIntegrationTest` 35 项；0 failures / 0 errors / 0 skipped；Java 21、H2 MySQL 模式 |
 | FastAPI 测试 | **23 passed** | `ai-service/tests/`；覆盖 Schema、provider、原文证据校正、本地模型降级、预测和经营分析闭集契约 |
 | 前端类型检查与生产构建 | **通过** | `npm.cmd run build`；Vite 共转换 2303 个模块；保留大 chunk 非阻断警告 |
 | 静态交付检查 | **通过** | `scripts/verify.ps1 -StaticOnly` |
@@ -35,6 +35,16 @@
 | 桌面与 390px | 通过 | 1440px、390px 均无整页横向溢出；计算字体 Noto Sans SC Variable；UI-19/UI-20 |
 | Docker Compose | **未执行** | 本机没有 Docker；Compose 网络、变量、Dockerfile 和 Nginx 只完成静态检查，不据此宣称容器部署通过 |
 | 用户个人 UAT | **待用户执行** | 后续反馈登记到 `docs/00-governance/UAT_FEEDBACK.md` |
+
+## 1.2 角色待办中心增量执行
+
+| 检查 | 结果 | 事实证据 |
+|---|---|---|
+| 角色与数据范围 | 通过 | 集成测试 #21 验证 BUYER 待办、SUPPLIER 绑定范围隔离、ADMIN 403 |
+| 只读边界 | 通过 | 调用前后操作日志数量不变；待办仅按既有业务状态查询和归类 |
+| 前端生产构建 | 通过 | `npm.cmd run build`，Vite 转换 2309 个模块 |
+| 桌面与 390px | 通过 | 页面宽度分别与视口一致；Noto Sans SC Variable 生效；UI-21/UI-22 |
+| 浏览器控制台 | 通过 | 新会话 0 errors / 0 warnings |
 
 ## 2. 本地大模型运行事实
 

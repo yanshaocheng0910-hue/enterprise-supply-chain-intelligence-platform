@@ -574,6 +574,29 @@ class PlatformIntegrationTest {
                 .andExpect(status().isForbidden()).andExpect(jsonPath("$.error.code").value("FORBIDDEN"));
     }
 
+    @Test @Order(21)
+    void workQueueIsRoleScopedReadonlyProjection() throws Exception {
+        long logsBefore = jdbc.queryForObject("select count(*) from operation_log", Long.class);
+        JsonNode buyerQueue = getData("/api/v1/work-queue", token("buyer", "123456"));
+        assertThat(buyerQueue.path("role").asText()).isEqualTo("BUYER");
+        assertThat(buyerQueue.path("tasks").isArray()).isTrue();
+        assertThat(buyerQueue.path("summary").path("total").asInt()).isEqualTo(buyerQueue.path("tasks").size());
+        buyerQueue.path("tasks").forEach(task -> {
+            assertThat(task.path("task_key").asText()).contains(":");
+            assertThat(task.path("route").asText()).startsWith("/");
+        });
+
+        String supplierResponse = mvc.perform(get("/api/v1/work-queue")
+                        .header("Authorization", "Bearer " + token("supplier", "123456")))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.role").value("SUPPLIER"))
+                .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+        assertThat(supplierResponse).doesNotContain("PO-SCOPE-002");
+
+        mvc.perform(get("/api/v1/work-queue").header("Authorization", "Bearer " + token("admin", "123456")))
+                .andExpect(status().isForbidden()).andExpect(jsonPath("$.error.code").value("FORBIDDEN"));
+        assertThat(jdbc.queryForObject("select count(*) from operation_log", Long.class)).isEqualTo(logsBefore);
+    }
+
     private static Map<String, Object> analysisReportResponse() {
         List<Map<String, Object>> sections = List.of(
                 Map.of("key", "executive_summary", "title", "经营摘要", "content", "经营状态需要持续复核。"),

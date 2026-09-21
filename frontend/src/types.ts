@@ -498,3 +498,29 @@ export interface AnalysisReport extends AnalysisReportSummary {
     topRisks: Array<{ kind: string; label: string; severity: string; createdAt: string }>
   }
 }
+
+export interface WorkQueueTask {
+  taskKey: string
+  taskType: 'WARNING_ACTION' | 'DEMAND_PLANNING' | 'PLAN_SUBMISSION' | 'PLAN_APPROVAL' | 'ORDER_CONFIRMATION' | 'DELIVERY_NOTICE' | 'ORDER_OVERDUE' | 'RECEIPT_PENDING' | 'RECONCILIATION_CONFIRM' | 'RECONCILIATION_DISPUTE'
+  severity: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW'
+  title: string
+  description: string
+  targetType: string
+  referenceNo: string
+  targetId: string | number
+  dueAt?: string
+  createdAt: string
+  route: string
+  actionLabel: string
+}
+
+export interface WorkQueue {
+  generatedAt: string
+  role: UserRole
+  summary: {
+    total: number
+    urgent: number
+    byType: Record<string, number>
+  }
+  tasks: WorkQueueTask[]
+}

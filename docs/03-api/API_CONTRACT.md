@@ -21,6 +21,7 @@ Spring 统一返回 `{success,data,error,requestId,timestamp}`；FastAPI 返回�
 |---|---|
 | 认证 | `POST /api/v1/auth/login`；`GET /api/v1/auth/me`；`POST /api/v1/auth/logout` |
 | 看板 | `GET /api/v1/dashboard/summary` |
+| 待办 | `GET /api/v1/work-queue` |
 | 导入 | `GET/POST /api/v1/imports`；`POST /api/v1/imports/preview`；`POST /api/v1/imports/{batchId}/commit`；`GET /api/v1/imports/{batchId}/errors` |
 | 主数据 | `GET/POST /api/v1/master-data/suppliers`；`GET/POST /api/v1/master-data/materials`；`GET /api/v1/master-data/warehouses`；`GET /api/v1/master-data/inventory` |
 | 采购 | `GET/POST /api/v1/procurement/demands`；`GET /api/v1/procurement/plans[/{id}]`；`POST /api/v1/procurement/plans`；`POST /api/v1/procurement/plans/{id}/actions`；`POST /api/v1/procurement/plans/{id}/generate-orders`；`GET /api/v1/procurement/orders[/{id}]`；`POST /api/v1/procurement/orders/{id}/actions` |
@@ -31,7 +32,14 @@ Spring 统一返回 `{success,data,error,requestId,timestamp}`；FastAPI 返回�
 
 方括号表示同一路由的列表/详情变体，不表示文字方括号应出现在 URL 中。
 
-### 2.1 预测建议处理
+### 2.1 角色待办
+
+- `GET /api/v1/work-queue`：BUYER、MANAGER、SUPPLIER 可读取；ADMIN 无业务待办权限。
+- 返回 `generatedAt`、当前 `role`、按总数/优先级/类型汇总的 `summary`，以及最多 100 条按优先级和期限排序的 `tasks`。
+- 任务来源于既有预警、需求、计划、订单、收货和对账状态；供应商结果按当前账号绑定 `supplier_id` 限定。
+- 本接口为只读投影，不复制审批状态、不写操作日志，也不代替原业务接口的权限、版本、幂等和状态机校验。
+
+### 2.2 预测建议处理
 
 `GET /api/v1/intelligence/forecast-runs[/{id}]` 为采购人员/管理者提供预测及建议状态；只有 BUYER 可写入处理决定。
 
@@ -47,7 +55,7 @@ Spring 统一返回 `{success,data,error,requestId,timestamp}`；FastAPI 返回�
 
 `POST /api/v1/intelligence/forecast-runs/{id}/reject` 仅 BUYER 可调用，请求包含 `expectedVersion` 和必填 `note`；成功后建议状态为 `REJECTED`，不创建采购需求。建议的采纳/拒绝只能由人工决策，不会自动生成订单。
 
-### 2.2 采购情景推演
+### 2.3 采购情景推演
 
 - `POST /api/v1/intelligence/scenarios`：BUYER/MANAGER，Header 必须包含 `Idempotency-Key`。输入情景名称、物料编码，以及需求变化、供应延迟、安全库存变化、到货合格率和采购价格变化；可指定成功的预测批次，不指定时取该物料最新成功批次。
 - 返回并持久化两小时有效的冻结结果：来源预测、输入参数、库存/在途事实、基准与模拟汇总、14 日逐日库存投影、受影响订单、假设、数据指纹和版本。模拟阶段不写采购需求、库存或订单。
@@ -55,14 +63,14 @@ Spring 统一返回 `{success,data,error,requestId,timestamp}`；FastAPI 返回�
 - `POST /api/v1/intelligence/scenarios/{id}/adopt`：仅 BUYER，Header 必须包含 `Idempotency-Key`，请求包含 `expectedVersion`、到货日期、优先级和可选说明。仅未过期、状态为 `PREVIEW` 且建议量大于 0 的记录可确认；成功创建 `source_type=SCENARIO` 的 `DRAFT` 采购需求。同键重放返回原需求，不重复写入。
 - MANAGER 可创建和比较只读情景，但不能调用采纳接口；SUPPLIER/ADMIN 无情景推演业务权限。全部数量、金额和风险由后端确定性规则计算，不由 LLM 直接决定。
 
-### 2.3 订单与收货状态命令
+### 2.4 订单与收货状态命令
 
 - 订单直接 `SHIP` / `MARK_ARRIVED` 命令被拒绝；发运及到达通过 `delivery-notices/{id}/actions` 的通知工作流完成。
 - 收货请求仅 BUYER 可写，需提供 `Idempotency-Key`、订单版本、订单明细及本次实收/合格/拒收数量，并关联 `ARRIVED` 到货通知。
 - `PARTIALLY_RECEIVED` 表示分批收货尚未全部合格入库；合格数量累计更新订单与库存，拒收数量需要原因且不计入已收合格数量。订单全部合格收齐后才可创建对账。
 - `START_RECONCILIATION` 不是订单直接状态命令；对账经 `POST /api/v1/collaboration/reconciliations` 建立，再使用对账动作处理。
 
-### 2.4 供应链经营分析报告
+### 2.5 供应链经营分析报告
 
 - `GET /api/v1/intelligence/analysis-reports`、`GET /api/v1/intelligence/analysis-reports/{id}`：BUYER/MANAGER 读取快照列表与详情；SUPPLIER/ADMIN 无企业经营报告权限。
 - `POST /api/v1/intelligence/analysis-reports`：BUYER/MANAGER，Header 必须包含 `Idempotency-Key`；后端汇总订单、库存、供应商、对账和预警统计，计算 SHA-256 数据指纹后调用 FastAPI。

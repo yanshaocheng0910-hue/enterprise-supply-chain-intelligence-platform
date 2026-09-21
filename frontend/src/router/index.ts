@@ -7,6 +7,7 @@ type RoleRouteMeta = { roles?: UserRole[]; public?: boolean }
 const shellChildren: RouteRecordRaw[] = [
   { path: '', redirect: 'dashboard' },
   { path: 'dashboard', component: () => import('@/views/DashboardView.vue'), meta: { title: '总览', section: '工作台' } },
+  { path: 'work-queue', component: () => import('@/views/WorkQueueView.vue'), meta: { title: '我的待办', section: '工作台', roles: ['BUYER', 'SUPPLIER', 'MANAGER'] } },
   { path: 'data-import', component: () => import('@/views/DataImportView.vue'), meta: { title: '数据导入', section: '数据与主档', roles: ['BUYER'] } },
   { path: 'admin-users', component: () => import('@/views/AdminUsersView.vue'), meta: { title: '用户与角色', section: '系统管理', roles: ['ADMIN'] } },
   { path: 'suppliers', component: () => import('@/views/SuppliersView.vue'), meta: { title: '供应商', section: '数据与主档', roles: ['BUYER', 'MANAGER'] } },

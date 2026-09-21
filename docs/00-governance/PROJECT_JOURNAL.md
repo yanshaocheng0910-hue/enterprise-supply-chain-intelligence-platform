@@ -185,3 +185,13 @@
 - 重新打包前发现旧 Java 进程锁定 JAR；按绝对路径和项目进程清单停止后解决。随后发现 PowerShell `ConvertFrom-Json` 已将 ISO UTC 字段转成 `DateTime`，旧校验再次解析导致 8 小时重复偏移；修复 `local-process-identity.ps1`，继续使用 PID、启动时间、程序路径、JAR 参数与端口联合校验，未降低安全边界。
 - Docker Compose 仍未实跑，用户个人 UAT 仍未开始，学校正式 Word/Excel、论文和答辩 PPT 尚未冻结；当前仍为 `0.9.0-UAT-RC2` 基线上的未发布候选，不标记 V1.0。
 - 唯一下一步：用户先在已打开页面进行个人 UAT；按 UAT 编号修复并回归。平台确认后，再进入论文初稿和学校模板整理。
+
+---
+
+## 2026-09-21（Asia/Shanghai）— 角色待办中心
+
+- 参考实际财务/资产系统的“责任到人、原单追踪”思路，新增角色待办中心，但不复制一套容易失真的任务状态。
+- 后端从既有预警、需求、计划、订单、收货和对账事实实时生成待办；BUYER、MANAGER、SUPPLIER 各取职责范围，供应商按绑定主数据隔离，ADMIN 被拒绝。
+- 前端新增“我的待办”、摘要、优先级/类别筛选和原业务入口；所有处理仍回原模块，保留原权限、版本、幂等和状态机校验。
+- Spring Boot 56/56、前端生产构建通过；BUYER 桌面和 390px 浏览器无整页横向溢出，离线 Noto Sans SC 生效，控制台 0 errors / 0 warnings。
+- 证据：`docs/assets/screenshots/21-work-queue-desktop.png`、`22-work-queue-mobile.png`。该内部验证不代替用户个人 UAT。

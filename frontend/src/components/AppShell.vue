@@ -94,7 +94,7 @@ type NavItem = { label: string; path: string; icon: typeof House; badge?: string
 type NavGroup = { label: string; items: NavItem[] }
 
 const groups: NavGroup[] = [
-  { label: '工作台', items: [{ label: '总览', path: '/dashboard', icon: House }, { label: '预警中心', path: '/warnings', icon: Warning, roles: ['ADMIN', 'BUYER', 'MANAGER'] }] },
+  { label: '工作台', items: [{ label: '总览', path: '/dashboard', icon: House }, { label: '我的待办', path: '/work-queue', icon: Bell, roles: ['BUYER', 'SUPPLIER', 'MANAGER'] }, { label: '预警中心', path: '/warnings', icon: Warning, roles: ['ADMIN', 'BUYER', 'MANAGER'] }] },
   { label: '数据与主档', items: [{ label: '数据导入', path: '/data-import', icon: FolderOpened, roles: ['BUYER'] }, { label: '供应商', path: '/suppliers', icon: User, roles: ['BUYER', 'MANAGER'] }, { label: '物料', path: '/materials', icon: Box, roles: ['BUYER', 'MANAGER'] }, { label: '仓库', path: '/warehouses', icon: Box, roles: ['BUYER', 'MANAGER'] }, { label: '库存', path: '/inventory', icon: Goods, roles: ['BUYER', 'MANAGER'] }] },
   { label: '决策与预警', items: [{ label: '14 天需求预测', path: '/forecast', icon: TrendCharts, roles: ['BUYER', 'MANAGER'] }, { label: '采购情景推演', path: '/scenario-simulation', icon: Operation, roles: ['BUYER', 'MANAGER'] }] },
   { label: '采购执行', items: [{ label: '采购需求', path: '/purchase-demands', icon: Tickets, roles: ['BUYER', 'MANAGER'] }, { label: '采购计划', path: '/purchase-plans', icon: Calendar, roles: ['BUYER', 'MANAGER'] }, { label: '采购订单', path: '/orders', icon: ShoppingBag, roles: ['BUYER', 'SUPPLIER', 'MANAGER'] }] },
