@@ -30,7 +30,7 @@ public class ProcurementService {
     }
 
     public List<Map<String, Object>> demands() {
-        return jdbc.queryForList("select d.id,d.demand_no,m.material_code,m.material_name,m.unit,d.quantity,d.expected_date,d.priority,d.source_type,d.source_ref,d.status,d.notes,d.version,d.created_at from purchase_demand d join material m on m.id=d.material_id order by d.created_at desc");
+        return jdbc.queryForList("select d.id,d.demand_no,m.material_code,m.material_name,m.unit,d.quantity,d.expected_date,d.priority,d.source_type,d.source_ref,d.forecast_run_id,d.status,d.notes,d.version,d.created_at from purchase_demand d join material m on m.id=d.material_id order by d.created_at desc");
     }
 
     @Transactional
@@ -43,7 +43,7 @@ public class ProcurementService {
                 sourceType == null ? "MANUAL" : sourceType, sourceRef, "DRAFT", input.notes(), user.id());
         Long id = jdbc.queryForObject("select id from purchase_demand where demand_no=?", Long.class, demandNo);
         audit.log(requestId, "CREATE_DEMAND", "PURCHASE_DEMAND", id, null, "DRAFT", demandNo);
-        return jdbc.queryForMap("select d.id,d.demand_no,m.material_code,m.material_name,d.quantity,d.expected_date,d.priority,d.source_type,d.status,d.notes,d.version from purchase_demand d join material m on m.id=d.material_id where d.id=?", id);
+        return jdbc.queryForMap("select d.id,d.demand_no,m.material_code,m.material_name,d.quantity,d.expected_date,d.priority,d.source_type,d.source_ref,d.forecast_run_id,d.status,d.notes,d.version from purchase_demand d join material m on m.id=d.material_id where d.id=?", id);
     }
 
     public List<Map<String, Object>> plans() {
@@ -120,14 +120,24 @@ public class ProcurementService {
         Map<String, Object> plan = one("select status,version from purchase_plan where id=?", planId, "采购计划不存在");
         String status = plan.get("status").toString();
         int version = ((Number) plan.get("version")).intValue();
-        List<Map<String, Object>> existing = jdbc.queryForList("select o.id,o.order_no,s.supplier_name,o.status,o.order_amount,o.expected_arrival_date,o.version from purchase_order o join supplier s on s.id=o.supplier_id where o.plan_id=? and o.idempotency_key like ? order by o.id", planId, idempotencyKey + "-%");
-        if (!existing.isEmpty()) return existing;
+        List<Map<String, Object>> existing = jdbc.queryForList("select o.id,o.order_no,s.supplier_name,o.status,o.order_amount,o.expected_arrival_date,o.version,o.idempotency_key from purchase_order o join supplier s on s.id=o.supplier_id where o.plan_id=? order by o.id", planId);
+        if (!existing.isEmpty()) {
+            boolean sameRequest = existing.stream().allMatch(row -> row.get("idempotency_key") != null && row.get("idempotency_key").toString().equals(idempotencyKey + "-1"));
+            if (sameRequest) {
+                existing.forEach(row -> row.remove("idempotency_key"));
+                return existing;
+            }
+            throw new BusinessException("ORDER_ALREADY_GENERATED", "该采购计划已经生成订单，请打开既有订单继续处理", HttpStatus.CONFLICT,
+                    Map.of("orderId", existing.get(0).get("id"), "orderNo", existing.get(0).get("order_no")));
+        }
         requireState(status, "APPROVED");
         if (version != expectedVersion) throw versionConflict(version);
         List<Map<String, Object>> items = jdbc.queryForList("select pi.id,pi.material_id,coalesce(pi.supplier_id,(select min(id) from supplier where status='ACTIVE')) supplier_id,pi.quantity,pi.unit_price,pi.expected_date from purchase_plan_item pi where pi.plan_id=?", planId);
         if (items.isEmpty()) throw bad("采购计划没有明细");
         Map<Long, List<Map<String, Object>>> groups = items.stream().collect(Collectors.groupingBy(i -> ((Number) i.get("supplier_id")).longValue(), LinkedHashMap::new, Collectors.toList()));
         if (groups.size() != 1) throw new BusinessException("BUSINESS_RULE_VIOLATION", "V1 每个采购计划只能生成一个供应商订单", HttpStatus.UNPROCESSABLE_ENTITY);
+        int claimed = jdbc.update("update purchase_plan set status='ORDER_CREATED',version=version+1,updated_at=current_timestamp where id=? and version=? and status='APPROVED'", planId, expectedVersion);
+        if (claimed != 1) throw versionConflict(expectedVersion + 1);
         List<Map<String, Object>> created = new ArrayList<>();
         int index = 0;
         for (Map.Entry<Long, List<Map<String, Object>>> entry : groups.entrySet()) {
@@ -148,8 +158,6 @@ public class ProcurementService {
             audit.log(requestId, "GENERATE_ORDER", "PURCHASE_ORDER", orderId, null, "PENDING_CONFIRMATION", orderNo);
             created.add(order(orderId));
         }
-        int updated = jdbc.update("update purchase_plan set status='ORDER_CREATED',version=version+1,updated_at=current_timestamp where id=? and version=? and status='APPROVED'", planId, expectedVersion);
-        if (updated != 1) throw versionConflict(expectedVersion + 1);
         audit.log(requestId, "PLAN_ORDER_CREATED", "PURCHASE_PLAN", planId, "APPROVED", "ORDER_CREATED", idempotencyKey);
         return created;
     }
@@ -187,9 +195,8 @@ public class ProcurementService {
             case "CONFIRM" -> { requireRole(user, "SUPPLIER"); requireState(before, "PENDING_CONFIRMATION"); after = "CONFIRMED"; }
             case "REJECT" -> { requireRole(user, "SUPPLIER"); requireState(before, "PENDING_CONFIRMATION"); if (note == null || note.isBlank()) throw bad("拒绝订单必须填写原因"); after = "REJECTED"; }
             case "PREPARE_SHIPMENT" -> { requireRole(user, "SUPPLIER"); requireState(before, "CONFIRMED"); after = "PENDING_SHIPMENT"; }
-            case "SHIP" -> { requireRole(user, "SUPPLIER"); requireState(before, "PENDING_SHIPMENT"); after = "SHIPPED"; }
-            case "MARK_ARRIVED" -> { requireRole(user, "BUYER"); requireState(before, "SHIPPED"); after = "ARRIVED"; }
-            case "START_RECONCILIATION" -> { requireRole(user, "BUYER"); requireState(before, "RECEIVED"); after = "RECONCILING"; }
+            case "SHIP", "MARK_ARRIVED" -> throw new BusinessException("USE_DELIVERY_NOTICE_WORKFLOW", "发运和到达必须通过到货通知处理，不能直接修改订单状态", HttpStatus.UNPROCESSABLE_ENTITY);
+            case "START_RECONCILIATION" -> throw new BusinessException("USE_RECONCILIATION_WORKFLOW", "请创建对账单进入对账，不能直接修改订单状态", HttpStatus.UNPROCESSABLE_ENTITY);
             case "CANCEL" -> { requireRole(user, "BUYER"); if (!List.of("PENDING_CONFIRMATION", "CONFIRMED", "PENDING_SHIPMENT").contains(before)) throw illegalState(before); if (note == null || note.isBlank()) throw bad("取消订单必须填写原因"); after = "CANCELLED"; }
             default -> throw bad("未知订单动作: " + rawAction);
         }

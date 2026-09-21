@@ -1,6 +1,7 @@
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import ElementPlus from 'element-plus'
+import '@fontsource-variable/noto-sans-sc/wght.css'
 import 'element-plus/dist/index.css'
 import '@/styles/tokens.css'
 import App from './App.vue'

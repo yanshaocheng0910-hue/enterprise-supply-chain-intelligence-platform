@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.scic.platform.common.BusinessException;
 import com.scic.platform.security.AuthUser;
 import com.scic.platform.security.SecuritySupport;
+import com.scic.platform.system.WarningService;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
@@ -35,10 +36,12 @@ public class DataImportService {
     private static final Set<String> TYPES = Set.of("SUPPLIER", "MATERIAL", "INVENTORY", "DEMAND_HISTORY");
     private final JdbcTemplate jdbc;
     private final ObjectMapper objectMapper;
+    private final WarningService warnings;
 
-    public DataImportService(JdbcTemplate jdbc, ObjectMapper objectMapper) {
+    public DataImportService(JdbcTemplate jdbc, ObjectMapper objectMapper, WarningService warnings) {
         this.jdbc = jdbc;
         this.objectMapper = objectMapper;
+        this.warnings = warnings;
     }
 
     @Transactional
@@ -81,7 +84,7 @@ public class DataImportService {
 
             ParseResult parsed = parse(type, bytes);
             for (ImportError error : parsed.errors()) {
-                jdbc.update("insert into data_import_error(batch_id,row_number,field_name,error_code,error_message,raw_data) values(?,?,?,?,?,?)",
+                jdbc.update("insert into data_import_error(batch_id,`row_number`,field_name,error_code,error_message,raw_data) values(?,?,?,?,?,?)",
                         batchId, error.row(), error.field(), error.code(), error.message(), error.raw());
             }
             if (!parsed.errors().isEmpty()) {
@@ -98,6 +101,7 @@ public class DataImportService {
             for (Map<String, String> row : parsed.rows()) applyRow(type, sourceSystem, batchId, row);
             jdbc.update("update data_import_batch set status='COMPLETED',total_rows=?,success_rows=?,failed_rows=0,finished_at=current_timestamp where id=?",
                     parsed.rows().size(), parsed.rows().size(), batchId);
+            warnings.refreshRuleWarnings();
             return batchResult(batchId, false, "导入完成");
         } catch (BusinessException ex) {
             throw ex;
@@ -119,6 +123,7 @@ public class DataImportService {
             List<Map<String, String>> staged = objectMapper.readValue(batch.get("staged_payload").toString(), new TypeReference<>() {});
             for (Map<String, String> row : staged) applyRow(batch.get("import_type").toString(), batch.get("source_system").toString(), batchId, row);
             jdbc.update("update data_import_batch set status='COMPLETED',staged_payload=null,finished_at=current_timestamp where id=? and status='VALIDATED'", batchId);
+            warnings.refreshRuleWarnings();
             return batchResult(batchId, false, "批次已原子提交");
         } catch (BusinessException ex) {
             throw ex;
@@ -128,7 +133,7 @@ public class DataImportService {
     }
 
     public List<Map<String, Object>> errors(long batchId) {
-        return jdbc.queryForList("select row_number,field_name,error_code,error_message,raw_data from data_import_error where batch_id=? order by row_number,id", batchId);
+        return jdbc.queryForList("select `row_number`,field_name,error_code,error_message,raw_data from data_import_error where batch_id=? order by `row_number`,id", batchId);
     }
 
     private ParseResult parse(String type, byte[] source) throws Exception {

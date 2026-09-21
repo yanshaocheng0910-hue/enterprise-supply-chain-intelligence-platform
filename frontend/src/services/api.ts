@@ -1,4 +1,5 @@
 import axios, { type AxiosError, type AxiosRequestConfig } from 'axios'
+import { readonly, ref } from 'vue'
 import type { ApiEnvelope } from '@/types'
 import { camelizeKeys } from '@/services/mappers'
 
@@ -11,8 +12,10 @@ export const apiClient = axios.create({
   headers: { 'Content-Type': 'application/json' },
 })
 
-let demoMode = localStorage.getItem('luna_demo_mode') === '1'
+const demoMode = ref(localStorage.getItem('luna_demo_mode') === '1')
 let lastApiError = ''
+
+export const demoModeState = readonly(demoMode)
 
 apiClient.interceptors.request.use((config) => {
   const token = localStorage.getItem('luna_access_token')
@@ -28,9 +31,9 @@ apiClient.interceptors.response.use(
   },
 )
 
-export function isDemoMode() { return demoMode }
+export function isDemoMode() { return demoMode.value }
 export function getLastApiError() { return lastApiError }
-export function setDemoMode(value: boolean) { demoMode = value; if (value) localStorage.setItem('luna_demo_mode', '1'); else localStorage.removeItem('luna_demo_mode') }
+export function setDemoMode(value: boolean) { demoMode.value = value; if (value) localStorage.setItem('luna_demo_mode', '1'); else localStorage.removeItem('luna_demo_mode') }
 export function isDemoFallbackEnabled() { return demoFallbackEnabled }
 
 /** Keep backend contract alignment in one place. Views use semantic paths. */

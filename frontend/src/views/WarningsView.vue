@@ -9,9 +9,9 @@
       <div v-if="errorMessage" class="inline-error"><WarningFilled />{{ errorMessage }}</div>
       <div v-if="loading && !warnings.length" class="table-loading"><div v-for="i in 4" :key="i" class="skeleton" style="height: 46px"></div></div>
       <div v-else-if="!filteredWarnings.length"><EmptyState title="没有匹配的预警" description="当前筛选范围内没有记录，或服务端还未返回预警数据。" action-text="清空筛选" @action="clearFilters" /></div>
-      <div v-else class="table-wrap"><el-table :data="filteredWarnings" stripe><el-table-column label="级别" width="82"><template #default="scope"><StatusBadge :label="severityMeta(scope.row.severity).label" :tone="severityMeta(scope.row.severity).tone" /></template></el-table-column><el-table-column label="预警与对象" min-width="240"><template #default="scope"><strong>{{ scope.row.title }}</strong><div class="muted">{{ scope.row.subject }}</div></template></el-table-column><el-table-column prop="description" label="原因" min-width="280" show-overflow-tooltip /><el-table-column label="状态" width="100"><template #default="scope"><StatusBadge :label="statusMeta(scope.row.status).label" :tone="statusMeta(scope.row.status).tone" /></template></el-table-column><el-table-column prop="createdAt" label="创建时间" width="170" /><el-table-column label="操作" width="105" fixed="right"><template #default="scope"><el-button link type="primary" @click="openDetail(scope.row)">查看处置</el-button></template></el-table-column></el-table></div>
+      <div v-else class="table-wrap"><el-table :data="filteredWarnings" stripe><el-table-column label="级别" width="82"><template #default="scope"><StatusBadge :label="severityMeta(scope.row.severity).label" :tone="severityMeta(scope.row.severity).tone" /></template></el-table-column><el-table-column label="预警与对象" min-width="240"><template #default="scope"><strong>{{ scope.row.title }}</strong><div class="muted">{{ scope.row.subject }}</div></template></el-table-column><el-table-column prop="description" label="原因" min-width="280" show-overflow-tooltip /><el-table-column label="状态" width="100"><template #default="scope"><StatusBadge :label="statusMeta(scope.row.status).label" :tone="statusMeta(scope.row.status).tone" /></template></el-table-column><el-table-column prop="createdAt" label="创建时间" width="170" /><el-table-column label="操作" width="105" fixed="right"><template #default="scope"><el-button link type="primary" @click="openDetail(scope.row)">{{ canHandleWarnings ? '查看处置' : '查看详情' }}</el-button></template></el-table-column></el-table></div>
     </section>
-    <el-drawer v-model="detailVisible" title="预警处置" size="475px"><template v-if="selected"><div class="warning-detail-head"><StatusBadge :label="severityMeta(selected.severity).label" :tone="severityMeta(selected.severity).tone" /><h2>{{ selected.title }}</h2><p>{{ selected.subject }}</p></div><dl class="drawer-list"><div><dt>原因</dt><dd>{{ selected.description }}</dd></div><div><dt>可能影响</dt><dd>{{ selected.impact }}</dd></div><div><dt>建议动作</dt><dd>{{ selected.suggestion }}</dd></div><div><dt>责任人</dt><dd>{{ selected.owner || '待分派' }}</dd></div><div><dt>创建时间</dt><dd>{{ selected.createdAt }}</dd></div></dl><div v-if="selected.status !== 'RESOLVED'" class="drawer-actions"><el-button :loading="updating" @click="updateStatus('ACKNOWLEDGED')">标记已确认</el-button><el-button type="primary" :loading="updating" @click="updateStatus('RESOLVED')">记录已解决</el-button></div><div v-else class="inline-note">该预警已解决。若业务事实发生变化，后端会根据新事件生成新的预警记录。</div></template></el-drawer>
+    <el-drawer v-model="detailVisible" :title="canHandleWarnings ? '预警处置' : '预警详情'" size="475px"><template v-if="selected"><div class="warning-detail-head"><StatusBadge :label="severityMeta(selected.severity).label" :tone="severityMeta(selected.severity).tone" /><h2>{{ selected.title }}</h2><p>{{ selected.subject }}</p></div><dl class="drawer-list"><div><dt>原因</dt><dd>{{ selected.description }}</dd></div><div><dt>可能影响</dt><dd>{{ selected.impact }}</dd></div><div><dt>建议动作</dt><dd>{{ selected.suggestion }}</dd></div><div><dt>责任人</dt><dd>{{ selected.owner || '待分派' }}</dd></div><div><dt>创建时间</dt><dd>{{ selected.createdAt }}</dd></div></dl><div v-if="canHandleWarnings && selected.status !== 'RESOLVED'" class="drawer-actions"><el-button :loading="updating" @click="updateStatus('ACKNOWLEDGED')">标记已确认</el-button><el-button type="primary" :loading="updating" @click="updateStatus('RESOLVED')">记录已解决</el-button></div><div v-else-if="selected.status === 'RESOLVED'" class="inline-note">该预警已解决。若业务事实发生变化，后端会根据新事件生成新的预警记录。</div><div v-else class="inline-note">系统管理员仅查看预警事实与处理状态；处置动作由采购协同人员或企业管理人员完成。</div></template></el-drawer>
   </div>
 </template>
 
@@ -25,14 +25,32 @@ import EmptyState from '@/components/EmptyState.vue'
 import { apiList, apiMutate, extractApiError } from '@/services/api'
 import { demoWarnings } from '@/services/demo'
 import { mapWarning } from '@/services/mappers'
+import { useAuthStore } from '@/stores/auth'
 import type { WarningRecord } from '@/types'
 
-const warnings = ref<WarningRecord[]>([]); const keyword = ref(''); const statusFilter = ref(''); const severityFilter = ref(''); const loading = ref(false); const updating = ref(false); const errorMessage = ref(''); const selected = ref<WarningRecord>(); const detailVisible = ref(false)
+const auth = useAuthStore(); const warnings = ref<WarningRecord[]>([]); const keyword = ref(''); const statusFilter = ref(''); const severityFilter = ref(''); const loading = ref(false); const updating = ref(false); const errorMessage = ref(''); const selected = ref<WarningRecord>(); const detailVisible = ref(false)
+const canHandleWarnings = computed(() => auth.role === 'BUYER' || auth.role === 'MANAGER')
 const filteredWarnings = computed(() => warnings.value.filter((item) => (!statusFilter.value || item.status === statusFilter.value) && (!severityFilter.value || item.severity === severityFilter.value) && (!keyword.value || `${item.title}${item.subject}${item.description}`.toLowerCase().includes(keyword.value.toLowerCase()))))
 const summaryItems = computed(() => [{ key: 'open', label: '待处理', count: warnings.value.filter((item) => item.status === 'OPEN').length, tone: 'danger' }, { key: 'high', label: '高风险', count: warnings.value.filter((item) => item.severity === 'HIGH' && item.status !== 'RESOLVED').length, tone: 'warning' }, { key: 'ack', label: '已确认', count: warnings.value.filter((item) => item.status === 'ACKNOWLEDGED').length, tone: 'blue' }, { key: 'resolved', label: '已解决', count: warnings.value.filter((item) => item.status === 'RESOLVED').length, tone: 'success' }])
 async function load() { loading.value = true; errorMessage.value = ''; try { const result = await apiList<WarningRecord>({ method: 'GET', url: '/warnings' }, mapWarning, () => demoWarnings); warnings.value = result.records } catch (error) { errorMessage.value = extractApiError(error) } finally { loading.value = false } }
 function openDetail(item: WarningRecord) { selected.value = item; detailVisible.value = true }
-async function updateStatus(status: WarningRecord['status']) { if (!selected.value) return; updating.value = true; try { const raw = await apiMutate<unknown>({ method: 'POST', url: `/warnings/${selected.value.id}/handle`, data: { result: status === 'RESOLVED' ? '已完成处置' : '已确认并分派处理', close: status === 'RESOLVED' } }, () => ({ ...selected.value!, status })); const result = mapWarning(raw); warnings.value = warnings.value.map((item) => item.id === result.id ? result : item); selected.value = result; ElMessage.success(`预警已标记为${statusMeta(status).label}`) } catch (error) { ElMessage.error(extractApiError(error)) } finally { updating.value = false } }
+async function updateStatus(status: WarningRecord['status']) {
+  if (!selected.value || !canHandleWarnings.value) return
+  updating.value = true
+  try {
+    const current = selected.value
+    const raw = await apiMutate<unknown>({ method: 'POST', url: `/warnings/${current.id}/handle`, data: { result: status === 'RESOLVED' ? '已完成处置' : '已确认并分派处理', close: status === 'RESOLVED' } }, () => ({ ...current, status }))
+    const patch = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw as Record<string, unknown> : {}
+    const result = mapWarning({ ...current, ...patch })
+    warnings.value = warnings.value.map((item) => item.id === current.id ? result : item)
+    selected.value = result
+    ElMessage.success(`预警已标记为${statusMeta(result.status).label}`)
+  } catch (error) {
+    ElMessage.error(extractApiError(error))
+  } finally {
+    updating.value = false
+  }
+}
 function clearFilters() { keyword.value = ''; statusFilter.value = ''; severityFilter.value = '' }
 function severityMeta(value: WarningRecord['severity']) { return ({ CRITICAL: { label: '严重', tone: 'danger' }, HIGH: { label: '高', tone: 'danger' }, MEDIUM: { label: '中', tone: 'warning' }, LOW: { label: '低', tone: 'blue' } } as const)[value] }
 function statusMeta(value: WarningRecord['status']) { return ({ OPEN: { label: '待处理', tone: 'danger' }, ACKNOWLEDGED: { label: '已确认', tone: 'warning' }, RESOLVED: { label: '已解决', tone: 'success' } } as const)[value] }

@@ -7,6 +7,11 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.FutureOrPresent;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -20,12 +25,15 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 import java.util.Map;
+import java.math.BigDecimal;
+import java.time.LocalDate;
 
 @RestController
 @RequestMapping("/api/v1/intelligence")
 public class IntelligenceController {
     private final IntelligenceService service;
-    public IntelligenceController(IntelligenceService service){this.service=service;}
+    private final ScenarioService scenarios;
+    public IntelligenceController(IntelligenceService service, ScenarioService scenarios){this.service=service;this.scenarios=scenarios;}
 
     @GetMapping("/forecast-runs") @PreAuthorize("hasAnyRole('BUYER','MANAGER')")
     public ApiResponse<List<Map<String,Object>>> runs(@RequestParam(required=false) String materialCode,HttpServletRequest r){return ApiResponse.ok(service.forecastRuns(materialCode),RequestIds.get(r));}
@@ -33,6 +41,32 @@ public class IntelligenceController {
     public ApiResponse<Map<String,Object>> run(@PathVariable long id,HttpServletRequest r){return ApiResponse.ok(service.forecastRun(id),RequestIds.get(r));}
     @PostMapping("/forecast-runs") @PreAuthorize("hasRole('BUYER')")
     public ApiResponse<Map<String,Object>> forecast(@Valid @RequestBody ForecastRequest b,HttpServletRequest r){return ApiResponse.ok(service.runForecast(RequestIds.get(r),b.materialCode()),RequestIds.get(r));}
+    @PostMapping("/forecast-runs/{id}/adopt") @PreAuthorize("hasRole('BUYER')")
+    public ApiResponse<Map<String,Object>> adopt(@PathVariable long id,
+                                                 @RequestHeader(name="Idempotency-Key") String key,
+                                                 @Valid @RequestBody AdoptForecastRequest b,
+                                                 HttpServletRequest r){return ApiResponse.ok(service.adoptForecastSuggestion(RequestIds.get(r),id,b.expectedVersion(),b.expectedDate(),b.priority(),b.note(),key),RequestIds.get(r));}
+    @PostMapping("/forecast-runs/{id}/reject") @PreAuthorize("hasRole('BUYER')")
+    public ApiResponse<Map<String,Object>> reject(@PathVariable long id,
+                                                  @Valid @RequestBody RejectForecastRequest b,
+                                                  HttpServletRequest r){return ApiResponse.ok(service.rejectForecastSuggestion(RequestIds.get(r),id,b.expectedVersion(),b.note()),RequestIds.get(r));}
+
+    @GetMapping("/scenarios") @PreAuthorize("hasAnyRole('BUYER','MANAGER')")
+    public ApiResponse<List<Map<String,Object>>> scenarios(HttpServletRequest r){return ApiResponse.ok(scenarios.scenarios(),RequestIds.get(r));}
+    @GetMapping("/scenarios/{id}") @PreAuthorize("hasAnyRole('BUYER','MANAGER')")
+    public ApiResponse<Map<String,Object>> scenario(@PathVariable long id,HttpServletRequest r){return ApiResponse.ok(scenarios.scenario(id),RequestIds.get(r));}
+    @PostMapping("/scenarios") @PreAuthorize("hasAnyRole('BUYER','MANAGER')")
+    public ApiResponse<Map<String,Object>> simulate(@RequestHeader(name="Idempotency-Key") String key,
+                                                    @Valid @RequestBody ScenarioRequest b,
+                                                    HttpServletRequest r){
+        var input=new ScenarioService.SimulationInput(b.scenarioName(),b.materialCode(),b.forecastRunId(),b.demandChangePercent(),b.supplierDelayDays(),b.safetyStockChangePercent(),b.qualificationRatePercent(),b.priceChangePercent());
+        return ApiResponse.ok(scenarios.simulate(RequestIds.get(r),key,input),RequestIds.get(r));
+    }
+    @PostMapping("/scenarios/{id}/adopt") @PreAuthorize("hasRole('BUYER')")
+    public ApiResponse<Map<String,Object>> adoptScenario(@PathVariable long id,
+                                                         @RequestHeader(name="Idempotency-Key") String key,
+                                                         @Valid @RequestBody ScenarioAdoptRequest b,
+                                                         HttpServletRequest r){return ApiResponse.ok(scenarios.adopt(RequestIds.get(r),id,key,b.expectedVersion(),b.expectedDate(),b.priority(),b.note()),RequestIds.get(r));}
 
     @GetMapping("/parse-records") @PreAuthorize("hasAnyRole('BUYER','SUPPLIER','MANAGER','ADMIN')")
     public ApiResponse<List<Map<String,Object>>> records(HttpServletRequest r){return ApiResponse.ok(service.parseRecords(),RequestIds.get(r));}
@@ -48,6 +82,18 @@ public class IntelligenceController {
     public ApiResponse<Map<String,Object>> cancel(@PathVariable long id,@Valid @RequestBody VersionRequest b,HttpServletRequest r){return ApiResponse.ok(service.cancelPreview(RequestIds.get(r),id,b.expectedVersion()),RequestIds.get(r));}
 
     public record ForecastRequest(@NotBlank String materialCode){}
+    public record AdoptForecastRequest(@NotNull Integer expectedVersion,@NotNull @FutureOrPresent LocalDate expectedDate,String priority,String note){}
+    public record RejectForecastRequest(@NotNull Integer expectedVersion,@NotBlank @Size(max=500) String note){}
+    public record ScenarioRequest(
+            @NotBlank @Size(max=128) String scenarioName,
+            @NotBlank String materialCode,
+            Long forecastRunId,
+            @NotNull @DecimalMin("-80") @DecimalMax("300") BigDecimal demandChangePercent,
+            @NotNull @Min(0) @Max(60) Integer supplierDelayDays,
+            @NotNull @DecimalMin("-100") @DecimalMax("300") BigDecimal safetyStockChangePercent,
+            @NotNull @DecimalMin("50") @DecimalMax("100") BigDecimal qualificationRatePercent,
+            @NotNull @DecimalMin("-50") @DecimalMax("300") BigDecimal priceChangePercent){}
+    public record ScenarioAdoptRequest(@NotNull Integer expectedVersion,@NotNull @FutureOrPresent LocalDate expectedDate,String priority,@Size(max=300) String note){}
     public record ParseRequest(@NotBlank String taskType,@NotBlank @Size(max=4000) String text,Map<String,Object> context){}
     public record CorrectionRequest(@NotNull Integer expectedVersion,@NotNull Map<String,Object> normalizedFields){}
     public record VersionRequest(@NotNull Integer expectedVersion){}

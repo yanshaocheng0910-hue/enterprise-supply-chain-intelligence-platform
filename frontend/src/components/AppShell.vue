@@ -77,7 +77,7 @@ import { computed, ref } from 'vue'
 import { useRoute, useRouter, RouterLink, RouterView } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
-import { isDemoMode } from '@/services/api'
+import { demoModeState } from '@/services/api'
 import type { UserRole } from '@/types'
 import {
   ArrowDown, ArrowRight, Bell, Box, Calendar, Checked, Close, Coin, DataAnalysis, Document, Files, FolderOpened, Goods, House, InfoFilled,
@@ -88,7 +88,7 @@ const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
 const sidebarOpen = ref(false)
-const demoFallback = ref(isDemoMode() || localStorage.getItem('luna_demo_mode') === '1')
+const demoFallback = demoModeState
 
 type NavItem = { label: string; path: string; icon: typeof House; badge?: string; roles?: UserRole[] }
 type NavGroup = { label: string; items: NavItem[] }
@@ -96,7 +96,7 @@ type NavGroup = { label: string; items: NavItem[] }
 const groups: NavGroup[] = [
   { label: '工作台', items: [{ label: '总览', path: '/dashboard', icon: House }, { label: '预警中心', path: '/warnings', icon: Warning, roles: ['ADMIN', 'BUYER', 'MANAGER'] }] },
   { label: '数据与主档', items: [{ label: '数据导入', path: '/data-import', icon: FolderOpened, roles: ['BUYER'] }, { label: '供应商', path: '/suppliers', icon: User, roles: ['BUYER', 'MANAGER'] }, { label: '物料', path: '/materials', icon: Box, roles: ['BUYER', 'MANAGER'] }, { label: '仓库', path: '/warehouses', icon: Box, roles: ['BUYER', 'MANAGER'] }, { label: '库存', path: '/inventory', icon: Goods, roles: ['BUYER', 'MANAGER'] }] },
-  { label: '决策与预警', items: [{ label: '14 天需求预测', path: '/forecast', icon: TrendCharts, roles: ['BUYER', 'MANAGER'] }] },
+  { label: '决策与预警', items: [{ label: '14 天需求预测', path: '/forecast', icon: TrendCharts, roles: ['BUYER', 'MANAGER'] }, { label: '采购情景推演', path: '/scenario-simulation', icon: Operation, roles: ['BUYER', 'MANAGER'] }] },
   { label: '采购执行', items: [{ label: '采购需求', path: '/purchase-demands', icon: Tickets, roles: ['BUYER', 'MANAGER'] }, { label: '采购计划', path: '/purchase-plans', icon: Calendar, roles: ['BUYER', 'MANAGER'] }, { label: '采购订单', path: '/orders', icon: ShoppingBag, roles: ['BUYER', 'SUPPLIER', 'MANAGER'] }] },
   { label: '协同履约', items: [{ label: '交付通知', path: '/deliveries', icon: Van, roles: ['BUYER', 'SUPPLIER', 'MANAGER'] }, { label: '收货', path: '/receipts', icon: Checked, roles: ['BUYER', 'SUPPLIER', 'MANAGER'] }, { label: '对账', path: '/reconciliation', icon: Coin, roles: ['BUYER', 'SUPPLIER', 'MANAGER'] }] },
   { label: '受控智能', items: [{ label: 'AI 语义解析', path: '/ai-parse', icon: DataAnalysis, roles: ['BUYER', 'SUPPLIER'] }] },
@@ -121,7 +121,6 @@ function handleRoleChange(command: UserRole | 'logout') {
   }
   auth.switchRole(command)
   if (!visibleGroups.value.some((group) => group.items.some((item) => item.path === route.path))) router.push('/dashboard')
-  demoFallback.value = isDemoMode() || localStorage.getItem('luna_demo_mode') === '1'
 }
 </script>
 

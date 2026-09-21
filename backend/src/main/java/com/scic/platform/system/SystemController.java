@@ -35,7 +35,7 @@ public class SystemController {
     @GetMapping("/warnings")
     @PreAuthorize("hasAnyRole('ADMIN','BUYER','MANAGER')")
     public ApiResponse<List<Map<String, Object>>> warnings(@RequestParam(required = false) String status, HttpServletRequest request) {
-        String sql = "select id,warning_no,warning_type,severity,target_type,target_id,title,reason_text,suggestion_text,status,handled_result,handled_at,created_at from warning_record";
+        String sql = "select id,warning_no,warning_type,severity,target_type,target_id,title,reason_text,suggestion_text,status,condition_active,handled_result,handled_at,last_detected_at,created_at,updated_at from warning_record";
         List<Map<String, Object>> rows = status == null || status.isBlank()
                 ? jdbc.queryForList(sql + " order by case severity when 'HIGH' then 1 when 'MEDIUM' then 2 else 3 end,created_at desc")
                 : jdbc.queryForList(sql + " where status=? order by created_at desc", status);
@@ -51,9 +51,9 @@ public class SystemController {
         if ("CLOSED".equals(before)) throw new BusinessException("ILLEGAL_STATE", "已关闭预警不能重复处理", HttpStatus.CONFLICT);
         String after = input.close() ? "CLOSED" : "ACKNOWLEDGED";
         long userId = com.scic.platform.security.SecuritySupport.currentUser().id();
-        jdbc.update("update warning_record set status=?,handled_by=?,handled_result=?,handled_at=current_timestamp where id=?", after, userId, input.result(), id);
+        jdbc.update("update warning_record set status=?,handled_by=?,handled_result=?,handled_at=current_timestamp,updated_at=current_timestamp where id=?", after, userId, input.result(), id);
         audit.log(RequestIds.get(request), "HANDLE_WARNING", "WARNING", id, before, after, input.result());
-        return ApiResponse.ok(Map.of("id", id, "status", after), RequestIds.get(request));
+        return ApiResponse.ok(jdbc.queryForMap("select id,warning_no,warning_type,severity,target_type,target_id,title,reason_text,suggestion_text,status,condition_active,handled_result,handled_at,last_detected_at,created_at,updated_at from warning_record where id=?", id), RequestIds.get(request));
     }
 
     @GetMapping("/audit-logs")

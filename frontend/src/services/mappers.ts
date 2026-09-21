@@ -114,7 +114,7 @@ export function mapDelivery(raw: unknown): DeliveryNotice {
   const r = dict(camelizeKeys(raw))
   const items = Array.isArray(r.items) ? r.items : []
   return {
-    id: text(r.id), noticeNo: text(r.noticeNo), orderNo: text(r.orderNo), supplierName: text(r.supplierName), shippedAt: text(r.shippedAt || r.createdAt), eta: text(r.expectedArrivalAt || r.eta), quantity: numeric(r.quantity || (items.length ? items.reduce((sum, item) => sum + numeric(dict(item).quantity), 0) : 0)),
+    id: text(r.id), noticeNo: text(r.noticeNo), orderNo: text(r.orderNo), supplierName: text(r.supplierName), createdAt: dateText(r.createdAt), eta: text(r.expectedArrivalAt || r.eta), quantity: numeric(r.quantity ?? (items.length ? items.reduce((sum, item) => sum + numeric(dict(item).quantity), 0) : 0)),
     status: statusText(r.status, 'DRAFT') as DeliveryNotice['status'], note: text(r.exceptionNote || r.note), version: numeric(r.version), orderId: text(r.orderId), items,
   }
 }
@@ -122,11 +122,18 @@ export function mapDelivery(raw: unknown): DeliveryNotice {
 export function mapReceipt(raw: unknown): ReceiptRecord {
   const r = dict(camelizeKeys(raw))
   const items = Array.isArray(r.items) ? r.items : []
-  const expected = numeric(r.expectedQuantity || (items.length ? items.reduce((sum, item) => sum + numeric(dict(item).orderedQty), 0) : 0))
-  const received = numeric(r.receivedQuantity || (items.length ? items.reduce((sum, item) => sum + numeric(dict(item).receivedQty), 0) : 0))
+  const hasExpectedQuantity = r.expectedQuantity !== undefined && r.expectedQuantity !== null
+  const hasReceivedQuantity = r.receivedQuantity !== undefined && r.receivedQuantity !== null
+  const quantityLoaded = hasExpectedQuantity || hasReceivedQuantity || Array.isArray(r.items)
+  const expected = hasExpectedQuantity ? numeric(r.expectedQuantity) : items.reduce((sum, item) => sum + numeric(dict(item).orderedQty), 0)
+  const received = hasReceivedQuantity ? numeric(r.receivedQuantity) : items.reduce((sum, item) => sum + numeric(dict(item).receivedQty), 0)
+  const itemDifference = items.reduce((sum, item) => sum + numeric(dict(item).differenceQty), 0)
+  const difference = r.difference !== undefined && r.difference !== null
+    ? numeric(r.difference)
+    : items.length ? itemDifference : received - expected
   return {
     id: text(r.id), receiptNo: text(r.receiptNo), orderNo: text(r.orderNo), supplierName: text(r.supplierName), receivedAt: dateText(r.receivedAt || r.createdAt),
-    expectedQuantity: expected, receivedQuantity: received, difference: numeric(r.difference, received - expected), status: statusText(r.status, 'PENDING') as ReceiptRecord['status'], operator: text(r.operator || r.receivedBy, '服务端记录'), version: numeric(r.version), orderId: text(r.orderId), orderVersion: numeric(r.orderVersion || r.version), deliveryNoticeId: r.noticeId || r.deliveryNoticeId, items,
+    expectedQuantity: expected, receivedQuantity: received, difference, status: statusText(r.status, 'PENDING') as ReceiptRecord['status'], operator: text(r.operator || r.receivedBy, '服务端记录'), version: numeric(r.version), orderId: text(r.orderId), orderVersion: numeric(r.orderVersion ?? r.version), deliveryNoticeId: r.noticeId ?? r.deliveryNoticeId, items, quantityLoaded,
   }
 }
 
@@ -149,7 +156,15 @@ export function mapWarning(raw: unknown): WarningRecord {
 export function mapAudit(raw: unknown): AuditRecord {
   const r = dict(camelizeKeys(raw))
   const after = statusText(r.afterState)
-  return { id: text(r.id), action: text(r.actionCode || r.action), module: text(r.targetType || r.module), actor: text(r.operatorName || r.actor), role: role(r.roleCode || r.role), target: `${text(r.targetType)}${r.targetId === undefined ? '' : ` #${text(r.targetId)}`}`, result: after === 'BLOCKED' ? 'BLOCKED' : 'RECORDED', occurredAt: dateText(r.createdAt || r.occurredAt), traceId: text(r.requestId || r.traceId), detail: text(r.detailText || r.detail), }
+  const explicitResult = statusText(r.result || r.resultCode || r.outcome, '')
+  const result: AuditRecord['result'] = ['SUCCESS', 'FAILED', 'BLOCKED', 'RECORDED'].includes(explicitResult)
+    ? explicitResult as AuditRecord['result']
+    : after === 'BLOCKED' || after === 'DENIED' ? 'BLOCKED'
+      : after === 'FAILED' || after === 'ERROR' ? 'FAILED'
+        : 'SUCCESS'
+  const targetType = text(r.targetType || r.module)
+  const target = text(r.target || r.targetName, `${targetType}${r.targetId === undefined || r.targetId === null ? '' : ` #${text(r.targetId)}`}`)
+  return { id: text(r.id), action: text(r.actionCode || r.action), module: targetType, actor: text(r.operatorName || r.actor), role: role(r.roleCode || r.role), target, result, occurredAt: dateText(r.createdAt || r.occurredAt), traceId: text(r.requestId || r.traceId), detail: text(r.detailText || r.detail), beforeState: text(r.beforeState), afterState: text(r.afterState), }
 }
 
 export function mapImport(raw: unknown): ImportBatch {
@@ -163,12 +178,21 @@ export function mapForecast(raw: unknown): ForecastPoint {
   const forecast = r.forecast ?? r.predictedQty
   const lower = r.lower ?? r.lowerBound
   const upper = r.upper ?? r.upperBound
-  return { id: text(r.id), date: text(r.date ?? r.forecastDate ?? r.asOfDate), materialCode: text(r.materialCode), materialName: text(r.materialName), baseline: baseline === undefined ? undefined : numeric(baseline), forecast: forecast === undefined ? 0 : numeric(forecast), lower: lower === undefined ? undefined : numeric(lower), upper: upper === undefined ? undefined : numeric(upper), actual: r.actual === undefined ? undefined : numeric(r.actual), confidence: undefined, runNo: text(r.runNo), modelName: text(r.modelName), status: text(r.status), fallbackReason: text(r.fallbackReason), dataLabel: text(r.dataLabel), horizonDays: numeric(r.horizonDays), mae: r.mae === undefined ? undefined : numeric(r.mae), rmse: r.rmse === undefined ? undefined : numeric(r.rmse), mape: r.mape === undefined ? undefined : numeric(r.mape), featureVersion: text(r.featureVersion), randomSeed: r.randomSeed === undefined ? undefined : numeric(r.randomSeed), }
+  const adopted = dict(r.adoptedDemand)
+  const adoptedDemand = Object.keys(adopted).length ? {
+    id: text(adopted.id), demandNo: text(adopted.demandNo), quantity: adopted.quantity === undefined ? undefined : numeric(adopted.quantity),
+    expectedDate: text(adopted.expectedDate), priority: text(adopted.priority), status: text(adopted.status), notes: text(adopted.notes),
+  } : undefined
+  return {
+    id: text(r.id), date: text(r.date ?? r.forecastDate ?? r.asOfDate), materialCode: text(r.materialCode), materialName: text(r.materialName), unit: text(r.unit),
+    baseline: baseline === undefined ? undefined : numeric(baseline), forecast: forecast === undefined ? 0 : numeric(forecast), lower: lower === undefined ? undefined : numeric(lower), upper: upper === undefined ? undefined : numeric(upper), actual: r.actual === undefined ? undefined : numeric(r.actual), confidence: undefined,
+    runNo: text(r.runNo), modelName: text(r.modelName), status: text(r.status), fallbackReason: text(r.fallbackReason), dataLabel: text(r.dataLabel), horizonDays: numeric(r.horizonDays), mae: r.mae === undefined ? undefined : numeric(r.mae), rmse: r.rmse === undefined ? undefined : numeric(r.rmse), mape: r.mape === undefined ? undefined : numeric(r.mape), featureVersion: text(r.featureVersion), randomSeed: r.randomSeed === undefined ? undefined : numeric(r.randomSeed),
+    suggestedOrderQty: r.suggestedOrderQty === undefined ? undefined : numeric(r.suggestedOrderQty), suggestionStatus: text(r.suggestionStatus), suggestionDecisionNote: text(r.suggestionDecisionNote), suggestionDecidedAt: dateText(r.suggestionDecidedAt), optimizationNote: text(r.optimizationNote), warningCode: text(r.warningCode), postprocessNote: text(r.postprocessNote), selectionNote: text(r.selectionNote), version: r.version === undefined ? undefined : numeric(r.version), adoptedDemand,
+  }
 }
 
 export function mapForecastDetail(raw: unknown): { metadata: ForecastPoint; points: ForecastPoint[] } {
   const r = dict(camelizeKeys(raw))
-  const metadata = mapForecast(r)
   const sequence = Array.isArray(r.results) ? r.results : Array.isArray(r.sequence) ? r.sequence : []
   const points = sequence.map((item) => {
     const row = dict(item)
@@ -182,11 +206,16 @@ export function mapForecastDetail(raw: unknown): { metadata: ForecastPoint; poin
       baseline: row.baseline ?? row.ma7,
     })
   })
+  const sequenceSuggestion = points.find((item) => item.suggestedOrderQty !== undefined && item.suggestedOrderQty > 0)?.suggestedOrderQty
+  const sequenceWarning = points.find((item) => item.warningCode)?.warningCode
+  const sequencePostprocess = points.find((item) => item.postprocessNote)?.postprocessNote
+  const metadata = mapForecast({ ...r, suggestedOrderQty: r.suggestedOrderQty ?? sequenceSuggestion, warningCode: r.warningCode ?? sequenceWarning, postprocessNote: r.postprocessNote ?? sequencePostprocess })
   return { metadata, points }
 }
 
 export function mapDashboard(raw: unknown): DashboardSummary {
   const r = dict(camelizeKeys(raw)); const metrics = dict(r.metrics); const inventoryRisk = Array.isArray(r.inventoryRisk) ? r.inventoryRisk.map(dict) : []; const recentOrders = Array.isArray(r.recentOrders) ? r.recentOrders.map(dict) : []; const orderStatus = Array.isArray(r.orderStatus) ? r.orderStatus.map(dict) : []
+  const inventoryShortages = inventoryRisk.filter((item) => numeric(item.availableSupply) < numeric(item.safetyStock))
   const kpis = [
     { key: 'openWarnings', label: '开放预警', value: numeric(metrics.openWarnings), unit: '条', tone: 'danger' as const, description: 'OPEN / ACKNOWLEDGED' },
     { key: 'highWarnings', label: '高风险预警', value: numeric(metrics.highWarnings), unit: '条', tone: 'warning' as const, description: '当前数据库快照' },
@@ -196,13 +225,14 @@ export function mapDashboard(raw: unknown): DashboardSummary {
   return {
     lastSyncedAt: dateText(r.asOf), dataNotice: text(r.dataNotice), kpis,
     demandTrend: [], fulfilment: orderStatus.map((item) => ({ name: text(item.status), value: numeric(item.count) })),
-    urgentTasks: inventoryRisk.map((item, index) => ({ id: `inventory-${index}`, title: `${text(item.materialName)}库存风险`, description: `可用供给 ${numeric(item.availableSupply)}，安全库存 ${numeric(item.safetyStock)}。`, severity: numeric(item.availableSupply) < numeric(item.safetyStock) ? 'critical' : 'medium', route: '/inventory', dueAt: '按当前快照处理', owner: '采购协同' })),
+    urgentTasks: inventoryShortages.map((item, index) => ({ id: `inventory-${index}`, title: `${text(item.materialName)}库存风险`, description: `可用供给 ${numeric(item.availableSupply)}，安全库存 ${numeric(item.safetyStock)}。`, severity: 'critical', route: '/inventory', dueAt: '按当前快照处理', owner: '采购协同' })),
     recentEvents: recentOrders.map((item) => ({ id: text(item.id), title: `订单 ${text(item.orderNo)}`, description: `${text(item.supplierName)} · ${text(item.status)}`, occurredAt: dateText(item.updatedAt), actor: '服务端记录', kind: 'order' })),
   }
 }
 
 export function mapParsePreview(raw: unknown): ParsePreview {
   const r = dict(camelizeKeys(raw)); const validation = dict(r.validation); const schemaChecks = dict(r.schemaChecks)
+  const evidence: ParsePreview['evidence'] = (Array.isArray(r.evidence) ? r.evidence : []).map((item) => { const entry = dict(item); return { field: text(entry.field).replace(/_([a-z])/g, (_, letter: string) => letter.toUpperCase()), value: (entry.value ?? null) as string | number | null, source: text(entry.source, '服务端校验') } })
   const businessChecksRaw = Array.isArray(r.businessChecks) ? r.businessChecks : Array.isArray(validation.businessChecks) ? validation.businessChecks : []
   const businessChecks = businessChecksRaw.map(dict)
   const missingRaw = Array.isArray(r.missingFields) ? r.missingFields : Array.isArray(validation.missingFields) ? validation.missingFields : []
@@ -218,5 +248,5 @@ export function mapParsePreview(raw: unknown): ParsePreview {
     { label: '缺失字段', status: missing.length ? 'FAIL' : 'PASS', detail: missing.length ? `待补充：${missing.join('、')}` : '必填字段已提取' },
     { label: '服务说明', status: warnings.length ? 'WARN' : 'PASS', detail: warnings.join('；') || '无额外服务说明' },
   ]
-  return { requestId: text(r.previewId || r.requestId), intent: statusText(r.taskType || r.intent, 'PURCHASE_DEMAND') as ParsePreview['intent'], originalText: text(r.sourceText || r.originalText), normalized: dict(camelizeKeys(r.normalizedFields || r.normalized)) as ParsePreview['normalized'], checks, provider: text(r.provider, '服务端'), model: text(r.modelName, '服务端配置'), promptVersion: text(r.schemaVersion, '1.0'), fallback: Boolean(r.fallback), expectedVersion: numeric(r.previewVersion || r.version), status: text(r.status), previewNo: text(r.previewNo), requiresConfirmation: Boolean(r.requiresConfirmation ?? true), expiresAt: dateText(r.expiresAt), }
+  return { requestId: text(r.previewId || r.requestId), intent: statusText(r.taskType || r.intent, 'PURCHASE_DEMAND') as ParsePreview['intent'], originalText: text(r.sourceText || r.originalText), normalized: dict(camelizeKeys(r.normalizedFields || r.normalized)) as ParsePreview['normalized'], evidence, checks, provider: text(r.provider, '服务端'), model: text(r.modelName, '服务端配置'), promptVersion: text(r.promptVersion || r.schemaVersion, '1.0'), fallback: Boolean(r.fallback), providerFallback: Boolean(r.providerFallback), fallbackReason: text(r.fallbackReason), expectedVersion: numeric(r.previewVersion || r.version), status: text(r.status), previewNo: text(r.previewNo), requiresConfirmation: Boolean(r.requiresConfirmation ?? true), expiresAt: dateText(r.expiresAt), }
 }

@@ -109,9 +109,9 @@ export const demoOrders: PurchaseOrder[] = [
 ]
 
 export const demoDeliveries: DeliveryNotice[] = [
-  { id: 'delivery-001', noticeNo: 'DN-20260824-003', orderNo: 'PO-20260820-008', supplierName: '海岳电子（苏州）', shippedAt: '2026-08-24', eta: '2026-08-26', quantity: 2400, status: 'IN_TRANSIT', note: '顺丰陆运，运单 SF12480022' },
-  { id: 'delivery-002', noticeNo: 'DN-20260823-006', orderNo: 'PO-20260815-021', supplierName: '博源包装材料', shippedAt: '2026-08-23', eta: '2026-08-25', quantity: 180, status: 'ARRIVED', note: '已到华东仓待收货' },
-  { id: 'delivery-003', noticeNo: 'DN-20260822-011', orderNo: 'PO-20260818-014', supplierName: '启辰精密制造', shippedAt: '2026-08-22', eta: '2026-08-28', quantity: 1200, status: 'SUBMITTED' },
+  { id: 'delivery-001', noticeNo: 'DN-20260824-003', orderNo: 'PO-20260820-008', supplierName: '海岳电子（苏州）', createdAt: '2026-08-24', eta: '2026-08-26', quantity: 2400, status: 'IN_TRANSIT', note: '顺丰陆运，运单 SF12480022' },
+  { id: 'delivery-002', noticeNo: 'DN-20260823-006', orderNo: 'PO-20260815-021', supplierName: '博源包装材料', createdAt: '2026-08-23', eta: '2026-08-25', quantity: 180, status: 'ARRIVED', note: '已到华东仓待收货' },
+  { id: 'delivery-003', noticeNo: 'DN-20260822-011', orderNo: 'PO-20260818-014', supplierName: '启辰精密制造', createdAt: '2026-08-22', eta: '2026-08-28', quantity: 1200, status: 'SUBMITTED' },
 ]
 
 export const demoReceipts: ReceiptRecord[] = [
@@ -143,16 +143,16 @@ export const demoParsePreview: ParsePreview = {
   intent: 'PURCHASE_DEMAND',
   originalText: '请为华东仓补充连接器外壳 2400 个，希望 8 月 31 日前到货，优先联系海岳电子。',
   normalized: { materialCode: 'M-2048', materialName: '连接器外壳', quantity: 2400, unit: '个', dueDate: '2026-08-31', warehouse: '华东成品仓', supplierHint: 'SUP-001' },
+  evidence: [],
   checks: [
     { label: '白名单意图', status: 'PASS', detail: '识别为采购需求，允许进入预览流程' },
     { label: '结构化字段', status: 'PASS', detail: '物料、数量、单位、日期均已提取' },
     { label: '业务事实校验', status: 'WARN', detail: 'M-2048 当前可用量低于安全库存，建议保留预警' },
     { label: '执行权限', status: 'PASS', detail: '当前采购角色可以创建草稿，不会自动提交订单' },
   ],
-  provider: 'demo-fallback', model: 'structured-replay', promptVersion: 'v0.8-whitelist-1', fallback: true,
+  provider: 'demo-fallback', model: 'structured-replay', promptVersion: 'v0.8-whitelist-1', fallback: true, providerFallback: false,
 }
 
 export function listResult<T>(records: T[]): ListResult<T> {
   return { records, total: records.length }
 }
-

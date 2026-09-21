@@ -5,6 +5,7 @@ from __future__ import annotations
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal
+from urllib.parse import urlparse
 
 from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -44,10 +45,21 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("OPENAI_MODEL", "LLM_MODEL"),
     )
     openai_timeout_seconds: float = Field(
-        default=15.0,
+        default=60.0,
         validation_alias=AliasChoices("OPENAI_TIMEOUT_SECONDS", "LLM_TIMEOUT_SECONDS"),
         ge=0.5,
         le=120,
+    )
+    openai_max_tokens: int = Field(
+        default=512,
+        validation_alias=AliasChoices("OPENAI_MAX_TOKENS", "LLM_MAX_TOKENS"),
+        ge=128,
+        le=2048,
+    )
+    llm_local_only: bool = Field(
+        default=True,
+        validation_alias=AliasChoices("LLM_LOCAL_ONLY", "AI_LOCAL_ONLY"),
+        description="默认只允许回环地址上的本地模型，防止业务数据误发到外部 API",
     )
     cors_allow_origins: str = Field(
         default="http://localhost:5173",
@@ -73,12 +85,27 @@ class Settings(BaseSettings):
             and self.openai_base_url
             and self.openai_api_key
             and self.openai_model
+            and self.provider_endpoint_allowed
         )
+
+    @property
+    def provider_endpoint_allowed(self) -> bool:
+        if not self.llm_local_only:
+            return True
+        if not self.openai_base_url:
+            return False
+        try:
+            hostname = (urlparse(self.openai_base_url).hostname or "").lower()
+        except ValueError:
+            return False
+        return hostname in {"127.0.0.1", "localhost", "::1"}
 
     @property
     def provider_configuration_warning(self) -> str | None:
         if self.llm_provider == "rule":
             return "未配置 OpenAI-compatible provider，使用可复现规则解析"
+        if self.openai_base_url and not self.provider_endpoint_allowed:
+            return "本地模型安全策略已拒绝外部 LLM 地址，未发送业务文本并改用规则解析"
         if not self.provider_configured:
             return "OpenAI-compatible provider 配置不完整，使用可复现规则解析"
         return None

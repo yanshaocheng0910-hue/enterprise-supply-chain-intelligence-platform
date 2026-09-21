@@ -3,6 +3,7 @@ package com.scic.platform.system;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -13,13 +14,16 @@ import java.util.List;
 @Component
 public class DemoDataInitializer implements ApplicationRunner {
     private final JdbcTemplate jdbc;
+    private final boolean enabled;
 
-    public DemoDataInitializer(JdbcTemplate jdbc) {
+    public DemoDataInitializer(JdbcTemplate jdbc, @Value("${scic.demo.synthetic-history-enabled:false}") boolean enabled) {
         this.jdbc = jdbc;
+        this.enabled = enabled;
     }
 
     @Override
     public void run(ApplicationArguments args) {
+        if (!enabled) return;
         Integer count = jdbc.queryForObject("select count(*) from demand_history", Integer.class);
         if (count != null && count > 0) return;
 
@@ -46,4 +50,3 @@ public class DemoDataInitializer implements ApplicationRunner {
         jdbc.batchUpdate("insert into demand_history(material_id, demand_date, quantity, source_system, data_label) values(?,?,?,?,?)", rows);
     }
 }
-

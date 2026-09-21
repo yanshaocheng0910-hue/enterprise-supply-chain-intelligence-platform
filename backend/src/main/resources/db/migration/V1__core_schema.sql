@@ -116,7 +116,7 @@ CREATE TABLE data_import_batch (
 CREATE TABLE data_import_error (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     batch_id BIGINT NOT NULL,
-    row_number INT NOT NULL,
+    `row_number` INT NOT NULL,
     field_name VARCHAR(64),
     error_code VARCHAR(64) NOT NULL,
     error_message VARCHAR(500) NOT NULL,

@@ -114,6 +114,9 @@ class ParseResponse(StrictModel):
     confidence: float = Field(ge=0, le=1)
     confidence_note: str = "confidence 仅供参考，不用于自动决策"
     provider: ParseProvider
+    model_name: str
+    prompt_version: str
+    fallback_reason: str | None = None
     requires_confirmation: Literal[True] = True
 
 

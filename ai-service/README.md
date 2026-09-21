@@ -20,7 +20,7 @@ py -3.11 -m venv ai-service\.venv
 & ai-service\.venv\Scripts\python.exe -m pip install -r ai-service\requirements-optional.txt
 ```
 
-复制 `.env.example` 为 `.env` 并替换 `X_SERVICE_TOKEN`。规则解析默认离线可用；没有完整的 `LLM_PROVIDER=openai-compatible`、`OPENAI_BASE_URL`、`OPENAI_API_KEY` 和 `OPENAI_MODEL` 配置时，响应的 `provider` 永远是 `rule`，不会伪装成大模型结果。
+复制 `.env.example` 为 `.env` 并替换 `X_SERVICE_TOKEN`。规则解析默认离线可用；没有完整的 `LLM_PROVIDER=openai-compatible`、`OPENAI_BASE_URL`、`OPENAI_API_KEY` 和 `OPENAI_MODEL` 配置时，响应的 `provider` 永远是 `rule`，不会伪装成大模型结果。`LLM_LOCAL_ONLY=true` 为默认安全策略，只允许 `127.0.0.1`、`localhost` 或 `::1` 上的本地模型；误填外部地址时不会发送业务文本，而是显式降级为规则解析。
 
 ## 认证与通用行为
 

@@ -113,6 +113,7 @@ export interface ForecastPoint {
   date: string
   materialCode: string
   materialName: string
+  unit?: string
   baseline?: number
   forecast: number
   lower?: number
@@ -130,6 +131,148 @@ export interface ForecastPoint {
   mape?: number
   featureVersion?: string
   randomSeed?: number
+  suggestedOrderQty?: number
+  suggestionStatus?: string
+  suggestionDecisionNote?: string
+  suggestionDecidedAt?: string
+  optimizationNote?: string
+  warningCode?: string
+  postprocessNote?: string
+  selectionNote?: string
+  version?: number
+  adoptedDemand?: {
+    id?: string
+    demandNo?: string
+    quantity?: number
+    expectedDate?: string
+    priority?: string
+    status?: string
+    notes?: string
+  }
+}
+
+export interface ScenarioProjectionPoint {
+  date: string
+  demandQty: number
+  arrivalQty: number
+  projectedAvailableQty: number
+  safetyStock: number
+  riskQty: number
+}
+
+export interface ScenarioProjection {
+  totalDemand: number
+  safetyStock: number
+  availableNow: number
+  effectiveInTransit: number
+  inTransitArrivalDay: number
+  inTransitWithinWindow: boolean
+  effectiveSupply: number
+  recommendedOrderQty: number
+  estimatedAmount: number
+  riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
+  riskDate?: string
+  stockoutDate?: string
+  endAvailableQty: number
+  maxRiskQty: number
+  points: ScenarioProjectionPoint[]
+}
+
+export interface ProcurementScenario {
+  id: string | number
+  scenarioNo: string
+  scenarioName: string
+  status: 'PREVIEW' | 'ADOPTED' | 'EXPIRED'
+  version: number
+  dataFingerprint: string
+  expiresAt: string
+  createdAt: string
+  adoptedAt?: string
+  material: {
+    id: string | number
+    code: string
+    name: string
+    unit: string
+    leadTimeDays: number
+    safetyStock: number
+    minOrderQty: number
+    packSize: number
+    standardPrice: number
+  }
+  forecast: {
+    runId: string | number
+    runNo: string
+    asOfDate: string
+    horizonDays: number
+    modelName: string
+    modelVersion?: string
+    dataLabel: string
+  }
+  parameters: {
+    demandChangePercent: number
+    supplierDelayDays: number
+    safetyStockChangePercent: number
+    qualificationRatePercent: number
+    priceChangePercent: number
+  }
+  sourceSnapshot: {
+    onHandQty: number
+    reservedQty: number
+    inTransitQty: number
+    availableNowQty: number
+    inventoryUpdatedAt?: string
+    affectedOrderCount: number
+    forecastRunNo: string
+    forecastDataHash: string
+  }
+  baseline: ScenarioProjection
+  simulated: ScenarioProjection
+  deltas: {
+    demandQty: number
+    recommendedOrderQty: number
+    estimatedAmount: number
+    riskDateShiftDays?: number
+  }
+  affectedOrders: Array<{
+    id: string | number
+    orderNo: string
+    status: string
+    supplierName: string
+    remainingQty: number
+    expectedArrivalDate?: string
+    simulatedArrivalDate?: string
+  }>
+  assumptions: string[]
+  adoptedDemand?: {
+    id: string | number
+    demandNo: string
+    quantity: number
+    expectedDate: string
+    priority: string
+    status: string
+    sourceType: string
+    sourceRef: string
+  }
+}
+
+export interface ProcurementScenarioSummary {
+  id: string | number
+  scenarioNo: string
+  scenarioName: string
+  materialCode: string
+  materialName: string
+  runNo: string
+  baselineOrderQty: number
+  simulatedOrderQty: number
+  simulatedAmount: number
+  riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
+  status: 'PREVIEW' | 'ADOPTED' | 'EXPIRED'
+  version: number
+  expiresAt: string
+  adoptedAt?: string
+  adoptedDemandId?: string | number
+  createdAt: string
+  createdByName: string
 }
 
 export interface WarningRecord {
@@ -151,7 +294,7 @@ export interface WarningRecord {
 export interface PurchaseDemand {
   id: string
   demandNo: string
-  source: 'FORECAST' | 'MANUAL' | 'AI_PARSE'
+  source: 'FORECAST' | 'MANUAL' | 'AI_PARSE' | 'SCENARIO'
   materialName: string
   materialCode: string
   quantity: number
@@ -189,7 +332,7 @@ export interface PurchaseOrder {
   itemCount: number
   totalAmount: number
   promisedDate: string
-  status: 'PENDING_CONFIRM' | 'PENDING_CONFIRMATION' | 'CONFIRMED' | 'PENDING_SHIPMENT' | 'SHIPPED' | 'ARRIVED' | 'PARTIAL' | 'DELIVERED' | 'RECEIVED' | 'RECONCILING' | 'COMPLETED' | 'REJECTED' | 'CLOSED' | 'CANCELLED'
+  status: 'PENDING_CONFIRM' | 'PENDING_CONFIRMATION' | 'CONFIRMED' | 'PENDING_SHIPMENT' | 'SHIPPED' | 'ARRIVED' | 'PARTIAL' | 'PARTIALLY_RECEIVED' | 'DELIVERED' | 'RECEIVED' | 'RECONCILING' | 'COMPLETED' | 'REJECTED' | 'CLOSED' | 'CANCELLED'
   sourcePlanNo: string
   updatedAt: string
   version?: number
@@ -202,7 +345,7 @@ export interface DeliveryNotice {
   noticeNo: string
   orderNo: string
   supplierName: string
-  shippedAt: string
+  createdAt: string
   eta: string
   quantity: number
   status: 'DRAFT' | 'SUBMITTED' | 'IN_TRANSIT' | 'ARRIVED' | 'EXCEPTION' | 'RECEIVED' | 'CANCELLED'
@@ -228,6 +371,7 @@ export interface ReceiptRecord {
   orderVersion?: number
   deliveryNoticeId?: unknown
   items?: unknown[]
+  quantityLoaded?: boolean
 }
 
 export interface ReconciliationRecord {
@@ -256,6 +400,8 @@ export interface AuditRecord {
   occurredAt: string
   traceId: string
   detail: string
+  beforeState?: string
+  afterState?: string
 }
 
 export interface ImportBatch {
@@ -278,11 +424,14 @@ export interface ParsePreview {
   intent: ParseIntent
   originalText: string
   normalized: Record<string, string | number | null>
+  evidence: { field: string; value: string | number | null; source: string }[]
   checks: { label: string; status: 'PASS' | 'WARN' | 'FAIL'; detail: string }[]
   provider: string
   model: string
   promptVersion: string
   fallback: boolean
+  providerFallback: boolean
+  fallbackReason?: string
   expectedVersion?: number
   status?: string
   previewNo?: string

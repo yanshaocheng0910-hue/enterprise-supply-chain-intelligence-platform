@@ -1,4 +1,5 @@
 server:
+  address: ${SCIC_SERVER_ADDRESS:127.0.0.1}
   port: ${SCIC_SERVER_PORT:8080}
   error:
     include-message: never
@@ -50,9 +51,13 @@ scic:
     base-url: ${SCIC_AI_BASE_URL:http://127.0.0.1:8001}
     service-token: ${SCIC_AI_SERVICE_TOKEN:local-ai-service-token-change-me}
     connect-timeout-ms: ${SCIC_AI_CONNECT_TIMEOUT_MS:2000}
-    read-timeout-ms: ${SCIC_AI_READ_TIMEOUT_MS:15000}
+    read-timeout-ms: ${SCIC_AI_READ_TIMEOUT_MS:75000}
   cors:
     allowed-origins: ${SCIC_CORS_ORIGINS:http://localhost:5173,http://127.0.0.1:5173}
+  demo:
+    synthetic-history-enabled: ${SCIC_DEMO_SYNTHETIC_HISTORY_ENABLED:false}
+  warning:
+    refresh-delay-ms: ${SCIC_WARNING_REFRESH_DELAY_MS:60000}
 
 logging:
   level:
@@ -60,4 +65,3 @@ logging:
     com.scic.platform: INFO
   file:
     name: ${SCIC_LOG_FILE:../.data/logs/backend.log}
-

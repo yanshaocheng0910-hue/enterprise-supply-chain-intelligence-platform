@@ -1,0 +1,80 @@
+[
+  {
+    "id": "PD-01",
+    "intent_hint": "purchase_demand",
+    "text": "请采购物料编码 MAT-BOX-05 120 个，要求在 2026-10-15 前到货。",
+    "expected": {"material_code": "MAT-BOX-05", "quantity": 120.0, "unit": "个", "required_date": "2026-10-15"},
+    "absent": ["supplier_name"]
+  },
+  {
+    "id": "PD-02",
+    "intent_hint": "purchase_demand",
+    "text": "采购物料名称 温度传感器T20 二百只，2026年10月18日前到货。",
+    "expected": {"material_name": "温度传感器T20", "quantity": 200.0, "unit": "只", "required_date": "2026-10-18"}
+  },
+  {
+    "id": "PD-03",
+    "intent_hint": "purchase_demand",
+    "text": "请购 SKU-TEST-03 48 箱，交付日期 2026-11-01。",
+    "expected": {"material_code": "SKU-TEST-03", "quantity": 48.0, "unit": "箱", "required_date": "2026-11-01"}
+  },
+  {
+    "id": "PD-04",
+    "intent_hint": "purchase_demand",
+    "text": "补货物料编码 MAT-CAB-04 90 套，要求 2026/10/22 到货，供应商编码 SUP-002。",
+    "expected": {"material_code": "MAT-CAB-04", "supplier_code": "SUP-002", "quantity": 90.0, "unit": "套", "required_date": "2026-10-22"},
+    "absent": ["supplier_name"]
+  },
+  {
+    "id": "PC-01",
+    "intent_hint": "plan_change",
+    "text": "计划号 PL-01 中物料 MAT-BOX-05 数量改为 300 个。",
+    "expected": {"plan_no": "PL-01", "material_code": "MAT-BOX-05", "change_type": "set_quantity", "new_quantity": 300.0},
+    "absent": ["quantity_delta", "required_date"]
+  },
+  {
+    "id": "PC-02",
+    "intent_hint": "plan_change",
+    "text": "计划号 PL-02 增加 20 个。",
+    "expected": {"plan_no": "PL-02", "change_type": "increase", "quantity_delta": 20.0},
+    "absent": ["new_quantity", "required_date"]
+  },
+  {
+    "id": "PC-03",
+    "intent_hint": "plan_change",
+    "text": "计划号 PL-03 减少 15 件。",
+    "expected": {"plan_no": "PL-03", "change_type": "decrease", "quantity_delta": -15.0},
+    "absent": ["new_quantity", "required_date"]
+  },
+  {
+    "id": "PC-04",
+    "intent_hint": "plan_change",
+    "text": "计划号 PL-04 延期到 2026-11-06。",
+    "expected": {"plan_no": "PL-04", "change_type": "reschedule", "required_date": "2026-11-06"}
+  },
+  {
+    "id": "PC-05",
+    "intent_hint": "plan_change",
+    "text": "取消计划号 PL-05。",
+    "expected": {"plan_no": "PL-05", "change_type": "cancel"},
+    "absent": ["new_quantity", "quantity_delta", "required_date"]
+  },
+  {
+    "id": "DN-01",
+    "intent_hint": "delivery_notice",
+    "text": "订单 PO-01 已发货 80 箱，预计 2026-10-25 到货，运单号 SF001。",
+    "expected": {"order_no": "PO-01", "quantity": 80.0, "unit": "箱", "eta": "2026-10-25", "tracking_no": "SF001", "delivery_status": "shipped"}
+  },
+  {
+    "id": "DN-02",
+    "intent_hint": "delivery_notice",
+    "text": "采购订单 PO-02 到货通知：30 台预计 2026年10月28日送达。",
+    "expected": {"order_no": "PO-02", "quantity": 30.0, "unit": "台", "eta": "2026-10-28", "delivery_status": "notified"}
+  },
+  {
+    "id": "DN-03",
+    "intent_hint": "delivery_notice",
+    "text": "订单号 PO-03 已到货 12 套，日期 2026-10-20。",
+    "expected": {"order_no": "PO-03", "quantity": 12.0, "unit": "套", "eta": "2026-10-20", "delivery_status": "arrived"}
+  }
+]

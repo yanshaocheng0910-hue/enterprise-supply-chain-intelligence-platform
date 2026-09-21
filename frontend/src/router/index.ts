@@ -14,6 +14,7 @@ const shellChildren: RouteRecordRaw[] = [
   { path: 'warehouses', component: () => import('@/views/WarehousesView.vue'), meta: { title: '仓库', section: '数据与主档', roles: ['BUYER', 'MANAGER'] } },
   { path: 'inventory', component: () => import('@/views/InventoryView.vue'), meta: { title: '库存', section: '数据与主档', roles: ['BUYER', 'MANAGER'] } },
   { path: 'forecast', component: () => import('@/views/ForecastView.vue'), meta: { title: '14 天需求预测', section: '决策与预警', roles: ['BUYER', 'MANAGER'] } },
+  { path: 'scenario-simulation', component: () => import('@/views/ScenarioSimulationView.vue'), meta: { title: '采购情景推演', section: '决策与预警', roles: ['BUYER', 'MANAGER'] } },
   { path: 'warnings', component: () => import('@/views/WarningsView.vue'), meta: { title: '预警中心', section: '决策与预警', roles: ['ADMIN', 'BUYER', 'MANAGER'] } },
   { path: 'purchase-demands', component: () => import('@/views/PurchaseDemandsView.vue'), meta: { title: '采购需求', section: '采购执行', roles: ['BUYER', 'MANAGER'] } },
   { path: 'purchase-plans', component: () => import('@/views/PurchasePlansView.vue'), meta: { title: '采购计划', section: '采购执行', roles: ['BUYER', 'MANAGER'] } },

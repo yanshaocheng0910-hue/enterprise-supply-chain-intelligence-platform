@@ -1,7 +1,9 @@
 :root {
   color-scheme: light;
-  font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", Arial, sans-serif;
+  font-family: "Noto Sans SC Variable", "Noto Sans SC", "Source Han Sans SC", "Microsoft YaHei", "PingFang SC", system-ui, sans-serif;
   font-synthesis: none;
+  font-optical-sizing: auto;
+  font-kerning: normal;
   text-rendering: optimizeLegibility;
 
   --lm-ink: oklch(26% 0.025 92);

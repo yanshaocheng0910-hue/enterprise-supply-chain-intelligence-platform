@@ -8,6 +8,7 @@ import com.scic.platform.procurement.ProcurementService;
 import com.scic.platform.security.AuthUser;
 import com.scic.platform.security.SecuritySupport;
 import com.scic.platform.system.AuditService;
+import com.scic.platform.system.WarningService;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -26,6 +27,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 @Service
@@ -36,29 +38,79 @@ public class IntelligenceService {
     private final ProcurementService procurement;
     private final CollaborationService collaboration;
     private final AuditService audit;
+    private final WarningService warnings;
 
     public IntelligenceService(JdbcTemplate jdbc, ObjectMapper json, AiGateway ai,
-                               ProcurementService procurement, CollaborationService collaboration, AuditService audit) {
+                               ProcurementService procurement, CollaborationService collaboration, AuditService audit, WarningService warnings) {
         this.jdbc = jdbc;
         this.json = json;
         this.ai = ai;
         this.procurement = procurement;
         this.collaboration = collaboration;
         this.audit = audit;
+        this.warnings = warnings;
     }
 
     public List<Map<String, Object>> forecastRuns(String materialCode) {
-        String base = "select f.id,f.run_no,m.material_code,m.material_name,f.as_of_date,f.horizon_days,f.model_name,f.model_version,f.data_label,f.mae,f.rmse,f.mape,f.fallback_reason,f.feature_version,f.random_seed,f.status,f.created_at from forecast_run f join material m on m.id=f.material_id";
+        String base = "select f.id,f.run_no,m.material_code,m.material_name,f.as_of_date,f.horizon_days,f.model_name,f.model_version,f.data_label,f.mae,f.rmse,f.mape,f.fallback_reason,f.feature_version,f.random_seed,f.status,f.suggestion_status,f.suggestion_decision_note,f.suggestion_decided_at,f.optimization_note,f.version,f.created_at,(select coalesce(max(fr.suggested_order_qty),0) from forecast_result fr where fr.run_id=f.id) suggested_order_qty from forecast_run f join material m on m.id=f.material_id";
         if (materialCode == null || materialCode.isBlank()) return jdbc.queryForList(base + " order by f.id desc");
         return jdbc.queryForList(base + " where m.material_code=? order by f.id desc", materialCode.trim());
     }
 
     public Map<String, Object> forecastRun(long id) {
-        List<Map<String, Object>> rows = jdbc.queryForList("select f.id,f.run_no,m.material_code,m.material_name,m.unit,m.lead_time_days,f.as_of_date,f.horizon_days,f.model_name,f.model_version,f.data_hash,f.data_label,f.mae,f.rmse,f.mape,f.fallback_reason,f.validation_details,f.split_details,f.feature_version,f.random_seed,f.status,f.created_at from forecast_run f join material m on m.id=f.material_id where f.id=?", id);
+        List<Map<String, Object>> rows = jdbc.queryForList("select f.id,f.run_no,m.material_code,m.material_name,m.unit,m.lead_time_days,f.as_of_date,f.horizon_days,f.model_name,f.model_version,f.data_hash,f.data_label,f.mae,f.rmse,f.mape,f.fallback_reason,f.validation_details,f.split_details,f.feature_version,f.random_seed,f.status,f.suggestion_status,f.suggestion_decision_note,f.suggestion_decided_at,f.optimization_note,f.version,f.created_at from forecast_run f join material m on m.id=f.material_id where f.id=?", id);
         if (rows.isEmpty()) throw notFound("预测记录不存在");
         Map<String,Object> result=new LinkedHashMap<>(rows.get(0));
         result.put("results",jdbc.queryForList("select forecast_date,predicted_qty,raw_predicted_qty,lower_bound,upper_bound,suggested_order_qty,warning_code,postprocess_note from forecast_result where run_id=? order by forecast_date",id));
+        BigDecimal suggested=jdbc.queryForObject("select coalesce(max(suggested_order_qty),0) from forecast_result where run_id=?",BigDecimal.class,id);
+        result.put("suggestedOrderQty",suggested==null?BigDecimal.ZERO:suggested);
+        List<Map<String,Object>> demands=jdbc.queryForList("select d.id,d.demand_no,d.quantity,d.expected_date,d.priority,d.status,d.notes from purchase_demand d where d.forecast_run_id=?",id);
+        result.put("adoptedDemand",demands.isEmpty()?null:demands.get(0));
         return result;
+    }
+
+    @Transactional
+    public Map<String,Object> adoptForecastSuggestion(String requestId,long runId,int expectedVersion,LocalDate expectedDate,String priority,String note,String idempotencyKey){
+        AuthUser user=SecuritySupport.currentUser();
+        if(!"BUYER".equals(user.role())) throw forbidden("只有采购协同人员可采纳预测建议");
+        if(idempotencyKey==null||idempotencyKey.isBlank()) throw new BusinessException("IDEMPOTENCY_REQUIRED","采纳预测建议必须提供 Idempotency-Key",HttpStatus.BAD_REQUEST);
+        List<Map<String,Object>> locked=jdbc.queryForList("select id,run_no,material_id,status,suggestion_status,version from forecast_run where id=? for update",runId);
+        if(locked.isEmpty()) throw notFound("预测记录不存在");
+        Map<String,Object> run=locked.get(0);
+        List<Map<String,Object>> existing=jdbc.queryForList("select d.id,d.demand_no,m.material_code,m.material_name,d.quantity,d.expected_date,d.priority,d.source_type,d.source_ref,d.status,d.notes,d.version from purchase_demand d join material m on m.id=d.material_id where d.forecast_run_id=?",runId);
+        if(!existing.isEmpty()) return existing.get(0);
+        int currentVersion=((Number)run.get("version")).intValue();
+        if(currentVersion!=expectedVersion) throw conflict("预测建议已更新，请刷新后重试");
+        if(!List.of("SUCCEEDED","COMPLETED").contains(run.get("status").toString())) throw new BusinessException("FORECAST_NOT_READY","预测批次未成功完成，不能采纳",HttpStatus.CONFLICT);
+        if(!"PENDING".equals(run.get("suggestion_status"))) throw new BusinessException("FORECAST_SUGGESTION_FINALIZED","预测建议已经处理，不能重复采纳",HttpStatus.CONFLICT);
+        BigDecimal suggestion=jdbc.queryForObject("select coalesce(max(suggested_order_qty),0) from forecast_result where run_id=?",BigDecimal.class,runId);
+        if(suggestion==null||suggestion.signum()<=0) throw new BusinessException("NO_PURCHASE_SUGGESTION","当前预测没有需要采纳的采购数量",HttpStatus.UNPROCESSABLE_ENTITY);
+        Number blocked=jdbc.queryForObject("select count(*) from forecast_result where run_id=? and warning_code='HORIZON_INSUFFICIENT'",Number.class,runId);
+        if(blocked!=null&&blocked.longValue()>0) throw new BusinessException("HORIZON_INSUFFICIENT","采购提前期超过预测窗口，请人工扩展判断周期",HttpStatus.UNPROCESSABLE_ENTITY);
+        String materialCode=jdbc.queryForObject("select material_code from material where id=?",String.class,run.get("material_id"));
+        String demandNote=(note==null||note.isBlank()?"采纳预测建议":note.trim())+"；预测批次="+run.get("run_no")+"；幂等键="+idempotencyKey;
+        Map<String,Object> demand=procurement.createDemand(requestId,new ProcurementService.DemandInput(materialCode,suggestion,expectedDate,priority,demandNote),"FORECAST",run.get("run_no").toString());
+        long demandId=((Number)demand.get("id")).longValue();
+        jdbc.update("update purchase_demand set forecast_run_id=? where id=?",runId,demandId);
+        int updated=jdbc.update("update forecast_run set suggestion_status='ADOPTED',suggestion_decision_note=?,suggestion_decided_by=?,suggestion_decided_at=current_timestamp,version=version+1 where id=? and version=? and suggestion_status='PENDING'",note,user.id(),runId,expectedVersion);
+        if(updated!=1) throw conflict("预测建议已由其他请求处理");
+        audit.log(requestId,"ADOPT_FORECAST_SUGGESTION","FORECAST_RUN",runId,"PENDING","ADOPTED","purchaseDemandId="+demandId);
+        return jdbc.queryForMap("select d.id,d.demand_no,m.material_code,m.material_name,d.quantity,d.expected_date,d.priority,d.source_type,d.source_ref,d.status,d.notes,d.version from purchase_demand d join material m on m.id=d.material_id where d.id=?",demandId);
+    }
+
+    @Transactional
+    public Map<String,Object> rejectForecastSuggestion(String requestId,long runId,int expectedVersion,String note){
+        AuthUser user=SecuritySupport.currentUser();
+        if(!"BUYER".equals(user.role())) throw forbidden("只有采购协同人员可处理预测建议");
+        List<Map<String,Object>> rows=jdbc.queryForList("select suggestion_status,version from forecast_run where id=? for update",runId);
+        if(rows.isEmpty()) throw notFound("预测记录不存在");
+        Map<String,Object> run=rows.get(0);
+        int current=((Number)run.get("version")).intValue();
+        if(current!=expectedVersion) throw conflict("预测建议已更新，请刷新后重试");
+        if(!"PENDING".equals(run.get("suggestion_status"))) throw new BusinessException("FORECAST_SUGGESTION_FINALIZED","预测建议已经处理",HttpStatus.CONFLICT);
+        jdbc.update("update forecast_run set suggestion_status='REJECTED',suggestion_decision_note=?,suggestion_decided_by=?,suggestion_decided_at=current_timestamp,version=version+1 where id=? and version=? and suggestion_status='PENDING'",note,user.id(),runId,expectedVersion);
+        audit.log(requestId,"REJECT_FORECAST_SUGGESTION","FORECAST_RUN",runId,"PENDING","REJECTED",note);
+        return forecastRun(runId);
     }
 
     @Transactional
@@ -81,29 +133,33 @@ public class IntelligenceService {
         payload.put("material_id",Long.toString(materialId)); payload.put("material_code",materialCode); payload.put("history",points);
         payload.put("lead_time_days",((Number)material.get("lead_time_days")).intValue()); payload.put("as_of_date",asOf.toString()); payload.put("horizon",14);
         Map<String,Object> response=ai.forecast(payload,requestId);
-        List<Map<String,Object>> sequence=castList(response.get("sequence"));
-        if(sequence.size()!=14) throw new BusinessException("AI_OUTPUT_INVALID","预测结果必须恰好包含14天",HttpStatus.BAD_GATEWAY);
+        List<Map<String,Object>> sequence=validateForecastResponse(response,asOf);
         Map<String,Object> metrics=castMap(response.get("metrics"));
         Map<String,Object> evaluation=castMap(response.get("evaluation"));
         String runNo=number("FC"); String model=response.get("model").toString().toUpperCase(Locale.ROOT);
         String fallback=response.get("fallback_reason")==null?null:response.get("fallback_reason").toString();
         String dataLabel=history.stream().allMatch(r->"DEMO_SYNTHETIC".equals(r.get("data_label")))?"DEMO_SYNTHETIC":"MIXED_OR_IMPORTED";
-        jdbc.update("insert into forecast_run(run_no,material_id,as_of_date,horizon_days,model_name,model_version,data_hash,data_label,mae,rmse,mape,fallback_reason,validation_details,split_details,feature_version,random_seed,status) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                runNo,materialId,asOf,14,model,"ai-service-1.0",dataHash,dataLabel,numberOrNull(metrics.get("mae")),numberOrNull(metrics.get("rmse")),numberOrNull(metrics.get("mape")),fallback,
-                write(evaluation),write(evaluation.get("split")),"lag-rolling-calendar-v1",42,"SUCCEEDED");
-        Long runId=jdbc.queryForObject("select id from forecast_run where run_no=?",Long.class,runNo);
         int lead=((Number)material.get("lead_time_days")).intValue();
-        BigDecimal suggestion=lead>14?BigDecimal.ZERO:calculateSuggestion(materialId,material,sequence);
+        SuggestionDecision decision=lead>14?new SuggestionDecision(BigDecimal.ZERO,"采购提前期超过14日预测窗口，未生成自动采购建议"):calculateSuggestion(materialId,material,sequence);
+        jdbc.update("insert into forecast_run(run_no,material_id,as_of_date,horizon_days,model_name,model_version,data_hash,data_label,mae,rmse,mape,fallback_reason,validation_details,split_details,feature_version,random_seed,status,optimization_note,suggestion_status) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                runNo,materialId,asOf,14,model,"ai-service-1.0",dataHash,dataLabel,numberOrNull(metrics.get("mae")),numberOrNull(metrics.get("rmse")),numberOrNull(metrics.get("mape")),fallback,
+                write(evaluation),write(evaluation.get("split")),"lag-rolling-calendar-v1",42,"SUCCEEDED",decision.note(),decision.quantity().signum()>0?"PENDING":"NOT_APPLICABLE");
+        Long runId=jdbc.queryForObject("select id from forecast_run where run_no=?",Long.class,runNo);
+        BigDecimal suggestion=decision.quantity();
         String warning=lead>14?"HORIZON_INSUFFICIENT":fallback!=null&&fallback.contains("DATA_INSUFFICIENT")?"DATA_INSUFFICIENT":null;
         Map<String,Object> post=castMap(response.get("postprocessing"));
         String postNote=post.get("explanation")==null?"预测值经非负截断；递归生成14日序列":post.get("explanation").toString();
         int position=0;
         for(Map<String,Object> point:sequence){
             LocalDate date=LocalDate.parse(point.get("date").toString()); BigDecimal forecast=decimal(point.get("forecast"));
-            if(forecast.signum()<0||date.isBefore(asOf.plusDays(1))) throw new BusinessException("AI_OUTPUT_INVALID","预测日期或数值不合法",HttpStatus.BAD_GATEWAY);
             jdbc.update("insert into forecast_result(run_id,forecast_date,predicted_qty,raw_predicted_qty,suggested_order_qty,warning_code,postprocess_note) values(?,?,?,?,?,?,?)",
                     runId,date,forecast,forecast,position++==0?suggestion:BigDecimal.ZERO,warning,postNote);
         }
+        if(suggestion.signum()>0) warnings.recordEventWarning("FORECAST_SHORTAGE","HIGH","MATERIAL",materialId,
+                material.get("material_name")+"未来14日存在预测采购缺口","预测批次"+runNo+"建议采购"+suggestion.stripTrailingZeros().toPlainString(),
+                "复核预测数据和库存后，可在预测详情中人工采纳为DRAFT采购需求");
+        else warnings.resolveEventWarning("FORECAST_SHORTAGE","MATERIAL",materialId,"最新预测批次未发现需要采购的缺口");
+        warnings.refreshRuleWarnings();
         audit.log(requestId,"RUN_FORECAST","FORECAST_RUN",runId,null,"SUCCEEDED",materialCode+";"+model+";"+dataLabel);
         Map<String,Object> result=forecastRun(runId); result.put("warnings",response.get("warnings")); result.put("suggestedOrderQty",suggestion); result.put("selectionNote","XGBoost仅在三折验证至少赢两折且平均MAE低于MA7时采用；否则使用MA7。");
         return result;
@@ -111,7 +167,7 @@ public class IntelligenceService {
 
     public List<Map<String,Object>> parseRecords(){
         AuthUser u=SecuritySupport.currentUser();
-        String base="select id,parse_no,task_type,schema_version,provider,model_name,schema_valid,business_valid,validation_errors,target_type,target_id,final_status,preview_version,expires_at,confirmed_at,latency_ms,created_by,created_at from ai_parse_record";
+        String base="select id,parse_no,task_type,schema_version,provider,model_name,prompt_version,schema_valid,business_valid,validation_errors,target_type,target_id,final_status,preview_version,expires_at,confirmed_at,latency_ms,created_by,created_at from ai_parse_record";
         if("ADMIN".equals(u.role())||"MANAGER".equals(u.role())) return jdbc.queryForList(base+" order by id desc");
         return jdbc.queryForList(base+" where created_by=? order by id desc",u.id());
     }
@@ -126,12 +182,15 @@ public class IntelligenceService {
         boolean schemaValid=missing.isEmpty(); boolean businessValid=schemaValid&&validation.valid();
         String status=businessValid?"PREVIEW":missing.isEmpty()?"INVALID":"NEEDS_INPUT";
         String no=number("AP"); OffsetDateTime expires=OffsetDateTime.now().plusMinutes(30);
+        String provider=Objects.requireNonNullElse(str(upstream.get("provider")),"unknown");
+        String modelName=Objects.requireNonNullElse(str(upstream.get("model_name")),"unknown");
+        String promptVersion=Objects.requireNonNullElse(str(upstream.get("prompt_version")),"parse-v1");
         String errors=write(Map.of("missingFields",missing,"businessChecks",validation.checks(),"warnings",upstream.getOrDefault("warnings",List.of())));
         long latency=Math.round((System.nanoTime()-started)/1_000_000.0);
         jdbc.update("insert into ai_parse_record(parse_no,task_type,schema_version,input_text,context_snapshot,provider,model_name,prompt_version,raw_response,normalized_json,schema_valid,business_valid,validation_errors,final_status,preview_version,expires_at,request_id,latency_ms,created_by) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                no,task,"1.0",text,write(validation.context()),upstream.get("provider"),"rule-or-configured-provider","parse-v1",write(upstream),write(validation.fields()),schemaValid,businessValid,errors,"PREVIEW",0,java.sql.Timestamp.from(expires.toInstant()),requestId,latency,user.id());
+                no,task,"1.0",text,write(validation.context()),provider,modelName,promptVersion,write(upstream),write(validation.fields()),schemaValid,businessValid,errors,"PREVIEW",0,java.sql.Timestamp.from(expires.toInstant()),requestId,latency,user.id());
         Long id=jdbc.queryForObject("select id from ai_parse_record where parse_no=?",Long.class,no);
-        audit.log(requestId,"CREATE_AI_PREVIEW","AI_PARSE_RECORD",id,null,"PREVIEW",task+";provider="+upstream.get("provider"));
+        audit.log(requestId,"CREATE_AI_PREVIEW","AI_PARSE_RECORD",id,null,"PREVIEW",task+";provider="+provider+";model="+modelName);
         return preview(id,status,missing,validation,upstream,expires);
     }
 
@@ -194,12 +253,19 @@ public class IntelligenceService {
 
     public Map<String,Object> previewRecord(long id){
         AuthUser user=SecuritySupport.currentUser(); Map<String,Object> r=parseVisible(id,user); Map<String,Object> out=new LinkedHashMap<>();
-        out.put("previewId",r.get("id")); out.put("previewNo",r.get("parse_no")); out.put("taskType",r.get("task_type")); out.put("status",r.get("final_status")); out.put("previewVersion",r.get("preview_version")); out.put("expiresAt",r.get("expires_at")); out.put("sourceText",r.get("input_text")); out.put("normalizedFields",readMap(r.get("normalized_json"))); out.put("schemaValid",r.get("schema_valid")); out.put("businessValid",r.get("business_valid")); out.put("validation",readMap(r.get("validation_errors"))); out.put("provider",r.get("provider")); out.put("requiresConfirmation",true); out.put("targetType",r.get("target_type")); out.put("targetId",r.get("target_id")); out.put("createdAt",r.get("created_at")); return out;
+        Map<String,Object> raw=readMap(r.get("raw_response"));
+        out.put("previewId",r.get("id")); out.put("previewNo",r.get("parse_no")); out.put("taskType",r.get("task_type")); out.put("status",r.get("final_status")); out.put("previewVersion",r.get("preview_version")); out.put("expiresAt",r.get("expires_at")); out.put("sourceText",r.get("input_text")); out.put("normalizedFields",readMap(r.get("normalized_json"))); out.put("schemaValid",r.get("schema_valid")); out.put("businessValid",r.get("business_valid")); out.put("validation",readMap(r.get("validation_errors"))); out.put("provider",r.get("provider")); out.put("modelName",r.get("model_name")); out.put("promptVersion",r.get("prompt_version")); out.put("providerFallback",raw.get("fallback_reason")!=null); out.put("fallbackReason",raw.get("fallback_reason")); out.put("requiresConfirmation",true); out.put("targetType",r.get("target_type")); out.put("targetId",r.get("target_id")); out.put("createdAt",r.get("created_at")); return out;
     }
 
     private Map<String,Object> preview(long id,String status,List<String> missing,Validation v,Map<String,Object> upstream,OffsetDateTime expires){
         Map<String,Object> out=new LinkedHashMap<>(); out.put("previewId",id); out.put("status",status); out.put("previewVersion",0); out.put("expiresAt",expires); out.put("schemaVersion","1.0"); out.put("sourceText",upstream.get("original_text")); out.put("normalizedFields",v.fields());
-        out.put("evidence",v.fields().entrySet().stream().filter(e->e.getValue()!=null).map(e->Map.of("field",e.getKey(),"value",e.getValue(),"source","原文解析")).toList()); out.put("missingFields",missing); out.put("schemaChecks",Map.of("valid",missing.isEmpty())); out.put("businessChecks",v.checks()); out.put("warnings",upstream.getOrDefault("warnings",List.of())); out.put("impactPreview",v.impact()); out.put("provider",upstream.get("provider")); out.put("confidenceNotice","解析置信仅供参考，不参与任何自动业务决策"); out.put("requiresConfirmation",true); return out;
+        String provider=Objects.requireNonNullElse(str(upstream.get("provider")),"unknown"); String evidenceSource="openai-compatible".equals(provider)?"模型提取（待原文核对）":"规则提取（原文匹配）";
+        Map<String,Object> extractedFields=castMap(upstream.get("fields"));
+        out.put("evidence",v.fields().entrySet().stream().filter(e->e.getValue()!=null).map(e->{
+            Object extracted=extractedFields.get(e.getKey());
+            String source=extracted==null?"主数据校验补全":sameEvidenceValue(extracted,e.getValue())?evidenceSource:"主数据校验纠正";
+            return Map.of("field",e.getKey(),"value",e.getValue(),"source",source);
+        }).toList()); out.put("missingFields",missing); out.put("schemaChecks",Map.of("valid",missing.isEmpty())); out.put("businessChecks",v.checks()); out.put("warnings",upstream.getOrDefault("warnings",List.of())); out.put("impactPreview",v.impact()); out.put("provider",provider); out.put("modelName",upstream.get("model_name")); out.put("promptVersion",upstream.get("prompt_version")); out.put("providerFallback",upstream.get("fallback_reason")!=null); out.put("fallbackReason",upstream.get("fallback_reason")); out.put("confidenceNotice","解析置信仅供参考，不参与任何自动业务决策"); out.put("requiresConfirmation",true); return out;
     }
 
     private Validation validateFields(String task,Map<String,Object> f,AuthUser user,Map<String,Object> existingContext){
@@ -234,14 +300,73 @@ public class IntelligenceService {
     private Map<String,Object> parseVisible(long id,AuthUser u){if("ADMIN".equals(u.role())||"MANAGER".equals(u.role())){List<Map<String,Object>>r=jdbc.queryForList("select * from ai_parse_record where id=?",id);if(r.isEmpty())throw notFound("AI记录不存在");return r.get(0);}return parseOwned(id,u);}
     private void authorizeTask(AuthUser u,String task){if("BUYER".equals(u.role())&&List.of("PURCHASE_DEMAND","PLAN_CHANGE").contains(task))return;if("SUPPLIER".equals(u.role())&&"DELIVERY_NOTICE".equals(task))return;throw forbidden("当前角色不能解析该类业务文本");}
     private static String normalizeTask(String raw){String t=raw==null?"":raw.trim().toUpperCase(Locale.ROOT);if(!List.of("PURCHASE_DEMAND","PLAN_CHANGE","DELIVERY_NOTICE").contains(t))throw new BusinessException("VALIDATION_ERROR","仅支持三类白名单任务",HttpStatus.BAD_REQUEST);return t;}
-    private BigDecimal calculateSuggestion(long materialId,Map<String,Object> material,List<Map<String,Object>> seq){BigDecimal forecast=seq.stream().map(p->decimal(p.get("forecast"))).reduce(BigDecimal.ZERO,BigDecimal::add);BigDecimal supply=jdbc.queryForObject("select coalesce(sum(on_hand_qty-reserved_qty+in_transit_qty),0) from inventory where material_id=?",BigDecimal.class,materialId);if(supply==null)supply=BigDecimal.ZERO;BigDecimal need=forecast.add(decimal(material.get("safety_stock"))).subtract(supply);if(need.signum()<=0)return BigDecimal.ZERO;BigDecimal min=decimal(material.get("min_order_qty"));BigDecimal pack=decimal(material.get("pack_size"));need=need.max(min);return need.divide(pack,0,RoundingMode.CEILING).multiply(pack);}
+    private SuggestionDecision calculateSuggestion(long materialId,Map<String,Object> material,List<Map<String,Object>> seq){
+        BigDecimal forecast=seq.stream().map(p->decimal(p.get("forecast"))).reduce(BigDecimal.ZERO,BigDecimal::add);
+        BigDecimal supply=jdbc.queryForObject("select coalesce(sum(on_hand_qty-reserved_qty+in_transit_qty),0) from inventory where material_id=?",BigDecimal.class,materialId);
+        if(supply==null)supply=BigDecimal.ZERO;
+        BigDecimal rejected=jdbc.queryForObject("select coalesce(sum(rejected_qty),0) from receipt_item where material_id=?",BigDecimal.class,materialId);
+        if(rejected==null)rejected=BigDecimal.ZERO;
+        BigDecimal qualityBuffer=rejected.min(forecast.multiply(new BigDecimal("0.20")));
+        BigDecimal deliveryRate=jdbc.queryForObject("select coalesce(avg(s.on_time_rate),1) from supplier s join purchase_order o on o.supplier_id=s.id join purchase_order_item oi on oi.order_id=o.id where oi.material_id=?",BigDecimal.class,materialId);
+        if(deliveryRate==null)deliveryRate=BigDecimal.ONE;
+        BigDecimal deliveryBuffer=deliveryRate.compareTo(new BigDecimal("0.9000"))<0?forecast.multiply(new BigDecimal("0.10")):BigDecimal.ZERO;
+        BigDecimal need=forecast.add(decimal(material.get("safety_stock"))).add(qualityBuffer).add(deliveryBuffer).subtract(supply);
+        String note="14日预测="+forecast.setScale(2,RoundingMode.HALF_UP)+"，安全库存="+decimal(material.get("safety_stock"))+"，可用供给="+supply+"，质量反馈缓冲="+qualityBuffer.setScale(2,RoundingMode.HALF_UP)+"，交付反馈缓冲="+deliveryBuffer.setScale(2,RoundingMode.HALF_UP);
+        if(need.signum()<=0)return new SuggestionDecision(BigDecimal.ZERO,note+"；无需补货");
+        BigDecimal min=decimal(material.get("min_order_qty"));BigDecimal pack=decimal(material.get("pack_size"));
+        need=need.max(min);BigDecimal rounded=need.divide(pack,0,RoundingMode.CEILING).multiply(pack);
+        return new SuggestionDecision(rounded,note+"；按最小起订量和包装量取整后建议="+rounded);
+    }
+
+    private static List<Map<String,Object>> validateForecastResponse(Map<String,Object> response,LocalDate asOf){
+        if(response==null||!(response.get("model") instanceof String model)||!List.of("MA7","XGBOOST").contains(model.toUpperCase(Locale.ROOT)))
+            throw invalidForecast("预测模型缺失或不受支持");
+        if(!(response.get("sequence") instanceof List<?> points)||points.size()!=14)
+            throw invalidForecast("预测结果必须恰好包含14天");
+        List<Map<String,Object>> sequence=new ArrayList<>();
+        for(int index=0;index<points.size();index++){
+            if(!(points.get(index) instanceof Map<?,?> point)) throw invalidForecast("预测序列包含无效数据点");
+            LocalDate date;
+            try{date=LocalDate.parse(Objects.toString(point.get("date"),""));}
+            catch(java.time.DateTimeException ex){throw invalidForecast("预测日期格式不合法");}
+            if(!date.equals(asOf.plusDays(index+1L))) throw invalidForecast("预测日期必须从历史截止日次日起连续14天");
+            BigDecimal quantity=forecastNumber(point.get("forecast"),new BigDecimal("99999999999999.9999"),"预测数量");
+            sequence.add(Map.of("date",date.toString(),"forecast",quantity));
+        }
+        if(!(response.get("metrics") instanceof Map<?,?> metrics)) throw invalidForecast("预测评价指标缺失或格式不合法");
+        for(String key:List.of("mae","rmse","mape")){
+            if(!metrics.containsKey(key)) throw invalidForecast("预测评价指标缺少"+key);
+            if(metrics.get(key)!=null) forecastNumber(metrics.get(key),new BigDecimal("999999999999.999999"),"预测评价指标");
+        }
+        return sequence;
+    }
+
+    private static BigDecimal forecastNumber(Object value,BigDecimal maximum,String label){
+        if(!(value instanceof Number)) throw invalidForecast(label+"必须是有限非负数字");
+        BigDecimal number;
+        try{number=decimal(value);}
+        catch(NumberFormatException ex){throw invalidForecast(label+"必须是有限非负数字");}
+        if(number.signum()<0||number.compareTo(maximum)>0) throw invalidForecast(label+"超出允许范围");
+        return number;
+    }
+
+    private static BusinessException invalidForecast(String message){
+        return new BusinessException("AI_OUTPUT_INVALID",message,HttpStatus.BAD_GATEWAY);
+    }
+
     private Map<String,Object> one(String sql,Object arg,String msg){List<Map<String,Object>>r=jdbc.queryForList(sql,arg);if(r.isEmpty())throw notFound(msg);return r.get(0);}
     private String write(Object v){try{return json.writeValueAsString(v);}catch(Exception e){throw new IllegalStateException(e);}}
     private Map<String,Object> readMap(Object v){if(v==null)return new LinkedHashMap<>();try{return json.readValue(v.toString(),new TypeReference<>(){});}catch(Exception e){return new LinkedHashMap<>();}}
     @SuppressWarnings("unchecked") private static Map<String,Object> castMap(Object v){return v instanceof Map<?,?> m?(Map<String,Object>)m:new LinkedHashMap<>();}
-    @SuppressWarnings("unchecked") private static List<Map<String,Object>> castList(Object v){return v instanceof List<?> l?(List<Map<String,Object>>)l:List.of();}
     private static List<String> stringList(Object v){if(!(v instanceof List<?> l))return List.of();return l.stream().map(Object::toString).toList();}
     private static LocalDate toDate(Object v){return v instanceof java.sql.Date d?d.toLocalDate():LocalDate.parse(v.toString());}
+    private static boolean sameEvidenceValue(Object extracted,Object validated){
+        if(Objects.equals(extracted,validated)) return true;
+        if(extracted instanceof Number&&validated instanceof Number){
+            try{return decimal(extracted).compareTo(decimal(validated))==0;}catch(Exception ignored){return false;}
+        }
+        return Objects.equals(String.valueOf(extracted),String.valueOf(validated));
+    }
     private static BigDecimal decimal(Object v){if(v==null)throw new IllegalArgumentException();return v instanceof BigDecimal b?b:new BigDecimal(v.toString());}
     private static BigDecimal numberOrNull(Object v){if(v==null)return null;return decimal(v);}
     private static String str(Object v){return v==null||v.toString().isBlank()?null:v.toString();}
@@ -252,4 +377,5 @@ public class IntelligenceService {
     private static BusinessException forbidden(String m){return new BusinessException("FORBIDDEN",m,HttpStatus.FORBIDDEN);}
     private static BusinessException conflict(String m){return new BusinessException("VERSION_CONFLICT",m,HttpStatus.CONFLICT);}
     private record Validation(boolean valid,Map<String,Object> fields,List<Map<String,Object>> checks,Map<String,Object> context,Map<String,Object> impact){}
+    private record SuggestionDecision(BigDecimal quantity,String note){}
 }
