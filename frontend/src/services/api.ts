@@ -9,7 +9,6 @@ const demoFallbackEnabled = import.meta.env.VITE_ENABLE_DEMO_FALLBACK === 'true'
 export const apiClient = axios.create({
   baseURL: apiBaseURL,
   timeout: 8000,
-  headers: { 'Content-Type': 'application/json' },
 })
 
 const demoMode = ref(localStorage.getItem('luna_demo_mode') === '1')
