@@ -1,0 +1,257 @@
+{
+  "executed_at": "2026-09-21T00:05:24.029546+08:00",
+  "environment": "local-only",
+  "endpoint": "http://127.0.0.1:8001/api/v1/parse",
+  "summary": {
+    "total": 12,
+    "passed": 12,
+    "failed": 0,
+    "pass_rate": 1.0,
+    "average_latency_ms": 3266.396
+  },
+  "results": [
+    {
+      "id": "PD-01",
+      "intent": "purchase_demand",
+      "passed": true,
+      "latency_ms": 3533.986,
+      "errors": [],
+      "provider": "openai-compatible",
+      "model_name": "qwen2.5:1.5b",
+      "prompt_version": "parse-v3-intent-schema-guarded",
+      "fields": {
+        "material_code": "MAT-BOX-05",
+        "quantity": 120.0,
+        "unit": "个",
+        "required_date": "2026-10-15",
+        "reason": "请采购"
+      },
+      "warnings": [
+        "模型字段已按原文证据校正或移除: material_name, quantity, supplier_code, supplier_name, warehouse_code",
+        "confidence 仅供参考，不用于自动决策"
+      ]
+    },
+    {
+      "id": "PD-02",
+      "intent": "purchase_demand",
+      "passed": true,
+      "latency_ms": 3261.681,
+      "errors": [],
+      "provider": "openai-compatible",
+      "model_name": "qwen2.5:1.5b",
+      "prompt_version": "parse-v3-intent-schema-guarded",
+      "fields": {
+        "material_name": "温度传感器T20",
+        "quantity": 200.0,
+        "unit": "只",
+        "required_date": "2026-10-18"
+      },
+      "warnings": [
+        "模型字段已按原文证据校正或移除: material_code, quantity, required_date, supplier_code, supplier_name, unit, warehouse_code",
+        "confidence 仅供参考，不用于自动决策"
+      ]
+    },
+    {
+      "id": "PD-03",
+      "intent": "purchase_demand",
+      "passed": true,
+      "latency_ms": 3199.937,
+      "errors": [],
+      "provider": "openai-compatible",
+      "model_name": "qwen2.5:1.5b",
+      "prompt_version": "parse-v3-intent-schema-guarded",
+      "fields": {
+        "material_code": "SKU-TEST-03",
+        "quantity": 48.0,
+        "unit": "箱",
+        "required_date": "2026-11-01"
+      },
+      "warnings": [
+        "模型字段已按原文证据校正或移除: material_code, material_name, quantity, supplier_code, supplier_name, warehouse_code",
+        "confidence 仅供参考，不用于自动决策"
+      ]
+    },
+    {
+      "id": "PD-04",
+      "intent": "purchase_demand",
+      "passed": true,
+      "latency_ms": 3826.225,
+      "errors": [],
+      "provider": "openai-compatible",
+      "model_name": "qwen2.5:1.5b",
+      "prompt_version": "parse-v3-intent-schema-guarded",
+      "fields": {
+        "material_code": "MAT-CAB-04",
+        "supplier_code": "SUP-002",
+        "quantity": 90.0,
+        "unit": "套",
+        "required_date": "2026-10-22",
+        "reason": "要求 2026/10/22 到货"
+      },
+      "warnings": [
+        "模型字段已按原文证据校正或移除: material_name, quantity, required_date, supplier_name, warehouse_code",
+        "confidence 仅供参考，不用于自动决策"
+      ]
+    },
+    {
+      "id": "PC-01",
+      "intent": "plan_change",
+      "passed": true,
+      "latency_ms": 3392.786,
+      "errors": [],
+      "provider": "openai-compatible",
+      "model_name": "qwen2.5:1.5b",
+      "prompt_version": "parse-v3-intent-schema-guarded",
+      "fields": {
+        "material_code": "MAT-BOX-05",
+        "plan_no": "PL-01",
+        "change_type": "set_quantity",
+        "new_quantity": 300.0
+      },
+      "warnings": [
+        "模型字段已按原文证据校正或移除: change_type, new_quantity, quantity_delta, reason, required_date",
+        "confidence 仅供参考，不用于自动决策"
+      ]
+    },
+    {
+      "id": "PC-02",
+      "intent": "plan_change",
+      "passed": true,
+      "latency_ms": 3072.71,
+      "errors": [],
+      "provider": "openai-compatible",
+      "model_name": "qwen2.5:1.5b",
+      "prompt_version": "parse-v3-intent-schema-guarded",
+      "fields": {
+        "plan_no": "PL-02",
+        "change_type": "increase",
+        "quantity_delta": 20.0
+      },
+      "warnings": [
+        "模型字段已按原文证据校正或移除: change_type, material_code, new_quantity, quantity_delta, required_date",
+        "confidence 仅供参考，不用于自动决策"
+      ]
+    },
+    {
+      "id": "PC-03",
+      "intent": "plan_change",
+      "passed": true,
+      "latency_ms": 2835.801,
+      "errors": [],
+      "provider": "openai-compatible",
+      "model_name": "qwen2.5:1.5b",
+      "prompt_version": "parse-v3-intent-schema-guarded",
+      "fields": {
+        "plan_no": "PL-03",
+        "change_type": "decrease",
+        "quantity_delta": -15.0
+      },
+      "warnings": [
+        "模型字段已按原文证据校正或移除: change_type, material_code, new_quantity, quantity_delta, required_date",
+        "confidence 仅供参考，不用于自动决策"
+      ]
+    },
+    {
+      "id": "PC-04",
+      "intent": "plan_change",
+      "passed": true,
+      "latency_ms": 3702.959,
+      "errors": [],
+      "provider": "openai-compatible",
+      "model_name": "qwen2.5:1.5b",
+      "prompt_version": "parse-v3-intent-schema-guarded",
+      "fields": {
+        "required_date": "2026-11-06",
+        "plan_no": "PL-04",
+        "change_type": "reschedule",
+        "reason": "计划号 PL-04 延期到 2026-11-06。"
+      },
+      "warnings": [
+        "模型字段已按原文证据校正或移除: change_type, material_code, new_quantity, quantity_delta",
+        "confidence 仅供参考，不用于自动决策"
+      ]
+    },
+    {
+      "id": "PC-05",
+      "intent": "plan_change",
+      "passed": true,
+      "latency_ms": 2668.394,
+      "errors": [],
+      "provider": "openai-compatible",
+      "model_name": "qwen2.5:1.5b",
+      "prompt_version": "parse-v3-intent-schema-guarded",
+      "fields": {
+        "plan_no": "PL-05",
+        "change_type": "cancel"
+      },
+      "warnings": [
+        "模型字段已按原文证据校正或移除: change_type, material_code, new_quantity, quantity_delta, required_date",
+        "confidence 仅供参考，不用于自动决策"
+      ]
+    },
+    {
+      "id": "DN-01",
+      "intent": "delivery_notice",
+      "passed": true,
+      "latency_ms": 3528.567,
+      "errors": [],
+      "provider": "openai-compatible",
+      "model_name": "qwen2.5:1.5b",
+      "prompt_version": "parse-v3-intent-schema-guarded",
+      "fields": {
+        "quantity": 80.0,
+        "unit": "箱",
+        "order_no": "PO-01",
+        "eta": "2026-10-25",
+        "tracking_no": "SF001",
+        "delivery_status": "shipped"
+      },
+      "warnings": [
+        "模型字段已按原文证据校正或移除: delivery_status, quantity, ship_date, supplier_code",
+        "confidence 仅供参考，不用于自动决策"
+      ]
+    },
+    {
+      "id": "DN-02",
+      "intent": "delivery_notice",
+      "passed": true,
+      "latency_ms": 3076.022,
+      "errors": [],
+      "provider": "openai-compatible",
+      "model_name": "qwen2.5:1.5b",
+      "prompt_version": "parse-v3-intent-schema-guarded",
+      "fields": {
+        "quantity": 30.0,
+        "unit": "台",
+        "order_no": "PO-02",
+        "eta": "2026-10-28",
+        "delivery_status": "notified"
+      },
+      "warnings": [
+        "模型字段已按原文证据校正或移除: delivery_status, eta, quantity, ship_date, supplier_code, tracking_no",
+        "confidence 仅供参考，不用于自动决策"
+      ]
+    },
+    {
+      "id": "DN-03",
+      "intent": "delivery_notice",
+      "passed": true,
+      "latency_ms": 3097.682,
+      "errors": [],
+      "provider": "openai-compatible",
+      "model_name": "qwen2.5:1.5b",
+      "prompt_version": "parse-v3-intent-schema-guarded",
+      "fields": {
+        "quantity": 12.0,
+        "unit": "套",
+        "order_no": "PO-03",
+        "eta": "2026-10-20",
+        "delivery_status": "arrived"
+      },
+      "warnings": [
+        "模型字段已按原文证据校正或移除: delivery_status, eta, quantity, ship_date, supplier_code, tracking_no, unit",
+        "confidence 仅供参考，不用于自动决策"
+      ]
+    }
+  ]
+}

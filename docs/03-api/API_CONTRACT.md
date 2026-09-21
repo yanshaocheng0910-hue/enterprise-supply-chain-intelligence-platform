@@ -24,12 +24,43 @@ Spring 统一返回 `{success,data,error,requestId,timestamp}`；FastAPI 返回�
 | 导入 | `GET/POST /api/v1/imports`；`POST /api/v1/imports/preview`；`POST /api/v1/imports/{batchId}/commit`；`GET /api/v1/imports/{batchId}/errors` |
 | 主数据 | `GET/POST /api/v1/master-data/suppliers`；`GET/POST /api/v1/master-data/materials`；`GET /api/v1/master-data/warehouses`；`GET /api/v1/master-data/inventory` |
 | 采购 | `GET/POST /api/v1/procurement/demands`；`GET /api/v1/procurement/plans[/{id}]`；`POST /api/v1/procurement/plans`；`POST /api/v1/procurement/plans/{id}/actions`；`POST /api/v1/procurement/plans/{id}/generate-orders`；`GET /api/v1/procurement/orders[/{id}]`；`POST /api/v1/procurement/orders/{id}/actions` |
-| 智能 | `GET /api/v1/intelligence/forecast-runs[/{id}]`；`POST /api/v1/intelligence/forecast-runs`；`GET /api/v1/intelligence/parse-records`；`GET/POST/PATCH /api/v1/intelligence/parse-previews[/{id}]`；`POST /api/v1/intelligence/parse-previews/{id}/confirm`；`POST /api/v1/intelligence/parse-previews/{id}/cancel` |
+| 智能 | `GET /api/v1/intelligence/forecast-runs[/{id}]`；`POST /api/v1/intelligence/forecast-runs`；`POST /api/v1/intelligence/forecast-runs/{id}/adopt`；`POST /api/v1/intelligence/forecast-runs/{id}/reject`；`GET/POST /api/v1/intelligence/scenarios[/{id}]`；`POST /api/v1/intelligence/scenarios/{id}/adopt`；`GET /api/v1/intelligence/parse-records`；`GET/POST/PATCH /api/v1/intelligence/parse-previews[/{id}]`；`POST /api/v1/intelligence/parse-previews/{id}/confirm`；`POST /api/v1/intelligence/parse-previews/{id}/cancel` |
 | 协同 | `GET/POST /api/v1/collaboration/delivery-notices[/{id}]`；`POST /api/v1/collaboration/delivery-notices/{id}/actions`；`GET/POST /api/v1/collaboration/receipts[/{id}]`；`GET/POST /api/v1/collaboration/reconciliations[/{id}]`；`POST /api/v1/collaboration/reconciliations/{id}/actions` |
 | 系统 | `GET /api/v1/system/warnings`；`POST /api/v1/system/warnings/{id}/handle`；`GET /api/v1/system/audit-logs`；`GET /api/v1/system/data-provenance` |
 | 管理 | `GET /api/v1/admin/roles`；`GET/POST /api/v1/admin/users`；`PATCH /api/v1/admin/users/{id}` |
 
 方括号表示同一路由的列表/详情变体，不表示文字方括号应出现在 URL 中。
+
+### 2.1 预测建议处理
+
+`GET /api/v1/intelligence/forecast-runs[/{id}]` 为采购人员/管理者提供预测及建议状态；只有 BUYER 可写入处理决定。
+
+列表行返回汇总字段 `suggested_order_qty`、`suggestion_status`、`suggestion_decision_note`、`optimization_note` 和版本号；已处理的历史批次仍显示原建议量。详情附 `suggestedOrderQty` 与已关联的 `adoptedDemand`（无采纳需求时为空）。
+
+`POST /api/v1/intelligence/forecast-runs/{id}/adopt`
+
+- Header：`Authorization: Bearer <JWT>`、`Idempotency-Key`；角色：BUYER。
+- 请求：`expectedVersion` 必填，`expectedDate` 必填且为当日或未来日期；`priority`、`note` 可选。
+- 仅已完成、状态为 `PENDING` 且建议数量大于 0 的预测可采纳；预测提前期超出 14 日等没有可采纳数量的情况会被拒绝。
+- 成功后生成一条 `source_type=FORECAST` 的 `DRAFT` 采购需求，关联来源预测批次；同一预测的重复请求返回已关联需求，不重复建单。请求键与预测批次的一对一数据库约束共同防止重复。
+- 预测版本不匹配或建议已被处理时返回冲突；字段应以当前 Controller/运行时 OpenAPI 为准。
+
+`POST /api/v1/intelligence/forecast-runs/{id}/reject` 仅 BUYER 可调用，请求包含 `expectedVersion` 和必填 `note`；成功后建议状态为 `REJECTED`，不创建采购需求。建议的采纳/拒绝只能由人工决策，不会自动生成订单。
+
+### 2.2 采购情景推演
+
+- `POST /api/v1/intelligence/scenarios`：BUYER/MANAGER，Header 必须包含 `Idempotency-Key`。输入情景名称、物料编码，以及需求变化、供应延迟、安全库存变化、到货合格率和采购价格变化；可指定成功的预测批次，不指定时取该物料最新成功批次。
+- 返回并持久化两小时有效的冻结结果：来源预测、输入参数、库存/在途事实、基准与模拟汇总、14 日逐日库存投影、受影响订单、假设、数据指纹和版本。模拟阶段不写采购需求、库存或订单。
+- `GET /api/v1/intelligence/scenarios` 与 `GET /api/v1/intelligence/scenarios/{id}`：BUYER 只能读取本人记录，MANAGER 可读取全部记录；过期预览以 `EXPIRED` 返回。
+- `POST /api/v1/intelligence/scenarios/{id}/adopt`：仅 BUYER，Header 必须包含 `Idempotency-Key`，请求包含 `expectedVersion`、到货日期、优先级和可选说明。仅未过期、状态为 `PREVIEW` 且建议量大于 0 的记录可确认；成功创建 `source_type=SCENARIO` 的 `DRAFT` 采购需求。同键重放返回原需求，不重复写入。
+- MANAGER 可创建和比较只读情景，但不能调用采纳接口；SUPPLIER/ADMIN 无情景推演业务权限。全部数量、金额和风险由后端确定性规则计算，不由 LLM 直接决定。
+
+### 2.3 订单与收货状态命令
+
+- 订单直接 `SHIP` / `MARK_ARRIVED` 命令被拒绝；发运及到达通过 `delivery-notices/{id}/actions` 的通知工作流完成。
+- 收货请求仅 BUYER 可写，需提供 `Idempotency-Key`、订单版本、订单明细及本次实收/合格/拒收数量，并关联 `ARRIVED` 到货通知。
+- `PARTIALLY_RECEIVED` 表示分批收货尚未全部合格入库；合格数量累计更新订单与库存，拒收数量需要原因且不计入已收合格数量。订单全部合格收齐后才可创建对账。
+- `START_RECONCILIATION` 不是订单直接状态命令；对账经 `POST /api/v1/collaboration/reconciliations` 建立，再使用对账动作处理。
 
 ## 3. FastAPI parse
 
@@ -66,6 +97,6 @@ confidence, confidence_note, provider, requires_confirmation=true
 
 1. 从根 `.env.example` 复制配置，保持 Spring 与 FastAPI token 一致。
 2. 先请求 `/health`，再用 token 调 parse/forecast；核对 `X-Request-ID` 和日志。
-3. 核对前端服务适配路径与本清单；当前已知部分语义路径仍需 UAT 联调，不以 404 作为理由绕过后端。
-4. 确认解析结果经过业务预览/确认后才写库，预测结果带模型、指标和降级说明。
+3. 核对前端服务适配路径与本清单；本轮成功预测路径和 BUYER 采纳页已有运行态证据；失败/超时路径、其它角色和完整页面交互仍待联调，不以离线测试代替运行态证据。
+4. 确认解析结果经过业务预览/确认后才写库；预测结果带模型、指标、降级说明、建议状态和人工处理记录。
 5. 本轮 Docker 仅静态检查，实际容器接口和 Nginx 代理待有 Docker 的环境验收。

@@ -17,7 +17,7 @@
 - Spring Boot：Java 17、Maven；默认 H2 文件或 MySQL profile。
 - 前端：Node/npm；Vite 开发端口 5173。
 - 示例 CSV：`samples/import`，数据标签为演示模板，不是真实企业生产数据。
-- Docker：本机不可用，本轮只做 Compose/Dockerfile/Nginx 静态检查。
+- 数据库：默认 H2 文件库；便携 MySQL 8.4.11 使用隔离端口 3307 和干净验收库；Docker 本机不可用，Compose/Dockerfile/Nginx 只做静态检查。
 
 ## 3. 用例目录
 
@@ -43,9 +43,23 @@
 | TC-BIZ-002 | 到货前收货 | 前置状态不满足时拒绝且库存不变 | `PlatformIntegrationTest` 源覆盖 |
 | TC-BIZ-003 | 收货事务 | 收货、库存和流水同事务成功或整体回滚 | 设计/代码路径已具备；待故障注入 |
 | TC-BIZ-004 | 对账差异 | 数量/金额差异进入争议和可审计处理 | 后端接口/表已具备；待 UAT |
+| TC-FC-006 | 预测采购建议采纳 | BUYER 对有数量的待处理建议确认后只创建一条 `FORECAST` 来源草稿；重复采纳返回同一需求，`forecast_run_id` 可追溯；历史列表继续显示建议数量和已采纳状态 | 后端集成测试 #11、真实 HTTP 预测和最终 BUYER 浏览器采纳/需求回读通过；列表两行显示 290、状态和待决策入口正确；非 BUYER 拒绝路径与用户 UAT 待验 |
+| TC-BIZ-005 | 部分收货与拒收 | 只允许关联已到达通知；合格数量累计更新订单与库存，拒收数量不计入履约；全部合格收齐前禁止对账 | 后端集成测试 #12 通过；当前浏览器收货页仅页面级复核，完整 UI 写操作待验 |
+| TC-WARN-001 | 库存预警条件生命周期 | 规则预警按来源键去重；人工关闭后条件未消失时保持关闭，条件清除后再次出现可重新打开 | 后端集成测试 #13 通过；当前浏览器预警页仅页面级复核，完整 UI 处置待验 |
+| TC-BIZ-006 | 计划生成订单幂等 | 同一计划最多生成一个订单；同一键重放返回既有订单，其他键冲突；幂等键中的 `%`、`_` 按普通字符处理 | 后端集成测试 #14 通过；并发数据库压力验证待做 |
+| TC-BIZ-007 | 发运状态只能经通知工作流 | 直接对订单执行 `SHIP` 被拒绝并提示使用到货通知工作流 | 后端集成测试 #3 通过；其他直接动作及浏览器流程待验 |
+| TC-SEC-004 | 预测建议角色边界 | 仅 BUYER 可采纳或拒绝建议；其他角色只能按授权范围查看，不得写入 | Controller 已声明 BUYER 权限；非 BUYER 拒绝路径尚未在本轮自动化测试验证，列入用户 UAT |
+| TC-SEC-005 | 停用账号令牌撤销 | ADMIN 停用账号后，该账号既不能重新登录，已签发 JWT 也必须在下一次请求返回 401；角色/供应商绑定变化采用数据库当前值 | H2 集成测试 #19 与真实 MySQL `AUTH-REVOKED-TOKEN` 通过 |
+| TC-OPS-004 | 合成历史数据开关范围 | `SCIC_DEMO_SYNTHETIC_HISTORY_ENABLED` 仅控制初始化器补充合成需求历史；不代表关闭系统其他种子演示数据 | 已核对实现与配置，自动化启动矩阵待补 |
+| TC-DEL-001 | 到货通知申报数量上限与列表汇总 | 实收不能超过本次到货通知申报数量；列表展示数据库汇总申报量和创建时间 | 后端集成测试 #15 通过；BUYER 浏览器通知列表已复核数量 `600` 与创建时间 |
+| TC-WARN-002 | 部分收货逾期剩余风险 | 部分履约订单已逾期时，预警说明剩余未履约量，不把已收部分计为未履约 | 后端集成测试 #15 通过；定时扫描长时间运行和用户 UAT 待验 |
+| TC-BIZ-008 | 分批到货的供应商准时率 | 供应商绩效按最后一批合格收货时间判断订单是否准时 | 后端集成测试 #16 通过；多订单汇总表现待用户 UAT |
+| TC-SCN-001 | 采购情景只读模拟 | BUYER 使用已保存预测、库存和在途事实模拟需求/交期/质量/价格变化；返回冻结的基准与模拟结果、逐日投影、风险和数据指纹；模拟前后业务需求数量不变；同幂等键顺序/并发重放不重复建记录 | 后端集成测试 #17/#18、真实 H2 API 和 BUYER 桌面/390px 浏览器操作通过 |
+| TC-SCN-002 | 情景采纳与角色边界 | 仅 BUYER 可在有效期内按版本确认建议量并生成一条 `SCENARIO` 来源草稿；重复采纳返回原需求；MANAGER 只读且不可采纳，SUPPLIER 不可模拟；过期状态持久化，旧版本/零建议/超长幂等键被拒，BUYER 记录隔离 | 后端集成测试 #17/#18 通过；MANAGER 浏览器只读提示及无采纳入口已验证；MySQL 已验证 V5 迁移兼容但未单列情景接口，用户 UAT 待验 |
 | TC-OPS-001 | 启动脚本 | 进程隐藏启动，PID 清单和日志在 D 盘 | 脚本静态检查 |
 | TC-OPS-002 | 停止脚本 | 只按本次 manifest 停止，不删除业务数据 | 脚本静态检查 |
 | TC-OPS-003 | Compose 配置 | 服务、变量、健康检查、代理路径可解析 | 静态检查；未运行 Docker |
+| TC-DB-001 | 真实 MySQL 干净库迁移与完整闭环 | 空库完成 V1—V5；四角色权限、业务状态、幂等、隔离、审计和原数据保全全部通过 | 2026-09-21 便携 MySQL 8.4.11，164/164；报告位于 `output/acceptance/` |
 
 ## 4. 预测与 AI 专项口径
 
@@ -57,10 +71,15 @@ AI 测试集必须区分原文、白名单意图、字段真值、缺失字段�
 
 | 检查 | 结果 | 证据 |
 |---|---|---|
-| FastAPI 基础测试 | 本轮已在 `ai-service` 工作目录执行通过（13 passed，含无 XGBoost 路径） | `ai-service/tests`、本轮 pytest 输出；应从 `D:\论文\ai-service` 执行 |
-| Spring Boot 集成测试 | 2026-08-25 复跑 10 passed，0 failures，0 errors，0 skipped | `backend/target/surefire-reports/TEST-com.scic.platform.PlatformIntegrationTest.xml`；执行明细见 `TEST_EXECUTION_2026-08-24.md` |
-| 前端浏览器/UAT | 四角色候选版巡检通过；用户个人 UAT 尚未开始 | `docs/assets/screenshots/README.md`、`TEST_EXECUTION_2026-08-24.md`；不能写成用户 UAT 已通过 |
+| FastAPI 基础测试 | 2026-09-21：19 passed | `ai-service/tests`、本轮 pytest 输出；应从 `D:\论文\ai-service` 执行 |
+| Spring Boot 集成测试 | 2026-09-21：54 passed，0 failures，0 errors，0 skipped；业务集成 19 项、AI 故障集成 35 项 | `backend/target/surefire-reports/TEST-*.xml`；执行明细见 `TEST_EXECUTION_2026-09-21.md` |
+| 真实 MySQL 8.4.11 | 164/164；干净库迁移与完整业务闭环、RBAC、幂等、范围隔离、审计、令牌撤销及数据保全通过 | `output/acceptance/mysql-uat-202609210244488FAB74.json` |
+| 当前工作树服务健康检查 | 本地 AI、Backend、Frontend 三服务均健康 | 本轮运行态检查；临时日志索引见 `TEST_EXECUTION_2026-09-20.md` |
+| 当前工作树浏览器检查 | ADMIN、SUPPLIER、MANAGER、BUYER 及 390px BUYER 页面已复核；最终 BUYER 总览控制台 0 errors / 0 warnings | `docs/assets/screenshots/13-admin-current.png`—`18-buyer-final-dashboard.png` |
+| 用户个人 UAT | 尚未开始 | `docs/00-governance/UAT_FEEDBACK.md`；内部浏览器检查不可代替用户验收 |
+| Spring Boot → FastAPI HTTP | 成功路径通过；35 项 AI 故障集成测试覆盖鉴权、超时/错误和受控失败边界 | `TEST_EXECUTION_2026-09-21.md`、`AiFailureIntegrationTest` |
 | Docker Compose | 未执行（本机 `docker` 命令不存在） | 仅 `scripts/verify.ps1 -StaticOnly` 和 YAML/Dockerfile/Nginx 静态检查 |
 | 路径/脚本/CSV | 静态检查通过 | `scripts/verify.ps1 -StaticOnly` |
+| 前端类型检查与生产构建 | `vue-tsc` 与生产构建通过 | 本轮前端验证输出；详见 `TEST_EXECUTION_2026-09-20.md` |
 
 任何“通过”只适用于上表明确的测试范围。当前项目状态仍为 UAT 候选，不得据此写最终 V1.0 或宣称无缺陷。

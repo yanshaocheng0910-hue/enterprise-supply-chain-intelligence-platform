@@ -1,4 +1,4 @@
-# 浏览器验收截图索引（2026-08-25 复核）
+# 浏览器验收截图索引（2026-09-20 增量）
 
 版本：`0.9.0-UAT-RC2`  
 环境：Windows 本机，Vue 3 `127.0.0.1:5173`、Spring Boot `127.0.0.1:8080`、FastAPI `127.0.0.1:8001`，H2 文件库  
@@ -13,5 +13,16 @@
 | UI-05 | `05-supplier-orders.png` | `supplier` / 采购订单 | 2026-08-25 重新取得并逐图核对；仅显示绑定供应商订单，订单 `PO-202608-001` 为已完成 |
 | UI-06 | `06-admin-users.png` | `admin` / 用户与角色 | 四个账号、角色、供应商绑定、版本和管理员专属操作 |
 | UI-07 | `07-manager-dashboard.png` | `manager` / 管理总览 | 2026-08-25 重新取得；顶部仅保留刷新动作，不显示采购创建按钮；展示管理范围导航、真实后端汇总与审计入口 |
+| UI-08 | `08-scenario-buyer.png` | `buyer` / 采购情景推演 | 2026-09-20 当前工作树；冻结预览 `SCN-20260920220442-5F363`，展示 XGBoost/`DEMO_SYNTHETIC` 来源、0→100 建议量、金额、指纹、逐日投影和人工确认入口 |
+| UI-09 | `09-scenario-manager-readonly.png` | `manager` / 采购情景推演 | 同一冻结预览的管理复核视图；显示“不能生成采购需求”，页面无确认按钮 |
+| UI-10 | `10-scenario-mobile.png` | `buyer` / 390px 展开结果 | 展开结果后仍保持整页 375px 宽，宽表在卡片内部滚动；按钮、事实摘要和状态可读 |
+| UI-11 | `11-ai-local-llm-preview.png` | `buyer` / AI 语义解析 | 真实本地 Qwen2.5-1.5B 预览；显示 provider/model/prompt、字段来源、人工确认和安全边界 |
+| UI-12 | `12-noto-sans-sc-materials.png` | `buyer` / 物料 | 2026-09-21 当前工作树；Noto Sans SC Variable 离线字体实际渲染，浏览器计算样式已核对 |
+| UI-13 | `13-admin-current.png` | `admin` / 用户与角色 | 2026-09-21 当前工作树；管理员导航、用户维护和角色绑定边界 |
+| UI-14 | `14-supplier-current.png` | `supplier` / 采购订单 | 2026-09-21 当前工作树；供应商只能看到绑定范围内订单和协同入口 |
+| UI-15 | `15-manager-current.png` | `manager` / 管理总览 | 2026-09-21 当前工作树；管理分析视图和只读业务边界 |
+| UI-16 | `16-buyer-local-llm-current.png` | `buyer` / AI 语义解析 | 2026-09-21 当前工作树；本地 Qwen provider、字段证据、人工确认和规则降级说明 |
+| UI-17 | `17-buyer-local-llm-mobile.png` | `buyer` / 390px AI 语义解析 | 2026-09-21 当前工作树；窄屏布局、内容可读性和无整页横向溢出 |
+| UI-18 | `18-buyer-final-dashboard.png` | `buyer` / 最终总览复核 | 2026-09-21 本轮最终运行页面，后端连接模式与真实数据；控制台 0 errors / 0 warnings |
 
-浏览器控制台最终以全新登录页会话复核：`0 errors / 0 warnings`。本索引证明候选版页面巡检，不代表用户个人 UAT 已通过。
+UI-01—UI-07 仍只证明 RC2 当时状态；UI-08—UI-10 是 2026-09-20 证据；UI-11—UI-18 是 2026-09-21 本地模型、字体和四角色当前工作树证据。对应巡检控制台为 `0 errors / 0 warnings`。本索引证明内部候选版巡检，不代表用户个人 UAT 已通过。

@@ -34,7 +34,7 @@ description: 面向采购闭环的专业、精确、克制且可信的企业工�
 
 ## Typography
 
-字体栈为 `"Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", Arial, sans-serif`，确保 Windows 答辩环境稳定。页面标题 26px/720，模块标题 16px/700，正文与表格 12–14px，元信息 10–11px；登录页展示标题使用 32–54px，但业务工作台不重复使用 Display 级字号。
+中文主字体为随前端离线打包的 `Noto Sans SC Variable`（思源黑体），字体栈为 `"Noto Sans SC Variable", "Noto Sans SC", "Source Han Sans SC", "Microsoft YaHei", "PingFang SC", system-ui, sans-serif`，不依赖外部字体 CDN，在 Windows 答辩环境也可稳定显示。页面标题 26px/720，模块标题 16px/700，正文与表格 12–14px，元信息 10–11px；登录页展示标题使用 32–54px，但业务工作台不重复使用 Display 级字号。
 
 金额、数量、百分比和日期启用 tabular numerals，并在可比较列右对齐。标题直接说明任务，说明文字补充口径、来源或下一步，不使用空泛营销语句。任何小于 12px 的文本只用于非关键元信息，核心操作与错误不得依赖微小文字。
 

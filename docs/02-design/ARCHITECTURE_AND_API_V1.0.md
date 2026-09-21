@@ -4,7 +4,7 @@
 基线日期：2026-08-24  
 当前状态：**UAT 候选，非最终 V1.0**
 
-> 本说明按当前代码反向整理，用于交接、联调和 UAT。Docker 相关内容只完成静态配置检查；学校正式设计说明书的 Word 模板本轮未填写，仅留证，不能把本说明当作最终归档件。
+> 本说明按当前代码反向整理，用于交接、联调和 UAT。便携 MySQL 已独立实测，Docker Compose 仍只完成静态配置检查；学校正式设计说明书的 Word 模板本轮未填写，仅留证，不能把本说明当作最终归档件。
 
 ## 1. 逻辑架构
 
@@ -31,14 +31,14 @@ Spring Boot 负责业务事实校验、状态机、权限、事务和最终持�
 | 前端开发服务器 | `127.0.0.1:5173` | `127.0.0.1:8088`（Nginx） | Vite/Nginx stdout 日志 |
 | Spring Boot | `127.0.0.1:8080` | 容器 8080 | `D:\论文\.data\logs\backend.log` |
 | FastAPI | `127.0.0.1:8001` | 内部 8001，不暴露宿主端口 | `D:\论文\.data\logs\ai-service.log` |
-| MySQL | 可选 `127.0.0.1:3306` | `127.0.0.1:3306` | `D:\论文\.data\mysql` |
+| MySQL | 独立验收 `127.0.0.1:3307`（8.4.11） | `127.0.0.1:3306` | `D:\论文\.data\mysql-uat` / `.data\mysql` |
 | H2 | `../.data/h2/scic` | 不使用 | `D:\论文\.data\h2` |
 
-本地启动脚本把 Python、npm、Maven 缓存设置到 `D:\论文\.cache`，并把进程清单写到 `D:\论文\.data\run\dev-processes.json`。后台进程统一使用隐藏窗口。Docker 本机未安装，因此 `docker-compose.yml`、三个 Dockerfile 和 `frontend/nginx.conf` 只做路径、端口、变量和 YAML 静态验收。
+本地启动脚本把 Python、npm、Maven 缓存设置到 `D:\论文\.cache`，并把进程清单写到 `D:\论文\.data\run\dev-processes.json`。后台进程统一使用隐藏窗口。便携 MySQL 8.4.11、数据、验收后端和报告均位于项目 D 盘，已从干净库执行 V1—V5 和 164 项验收；Docker 本机未安装，因此 `docker-compose.yml`、三个 Dockerfile 和 `frontend/nginx.conf` 仍只做路径、端口、变量和 YAML 静态验收。
 
 ## 3. 认证、请求追踪与跨域
 
-- Spring Boot：登录 `/api/v1/auth/login` 返回 JWT；业务请求使用 `Authorization: Bearer <token>`。`admin`、`buyer`、`supplier`、`manager` 为开发种子账号，默认密码 `123456` 仅用于本地演示，部署前必须修改。
+- Spring Boot：登录 `/api/v1/auth/login` 返回 JWT；业务请求使用 `Authorization: Bearer <token>`。过滤器在验证签名后重新读取 `sys_user` 的当前启用状态、角色和供应商绑定，因此停用账号的旧 token 会立即失效，角色变化也不会沿用旧 claims。`admin`、`buyer`、`supplier`、`manager` 为开发种子账号，默认密码 `123456` 仅用于本地演示，部署前必须修改。
 - FastAPI：除 `GET /health` 外均要求 `X-Service-Token`。令牌不写日志；每次响应提供 `X-Request-ID`，结构化日志使用同一请求号关联。
 - CORS：Spring 和 FastAPI 都只允许环境变量中的显式来源，禁止 `*`。Compose 前端通过 Nginx 代理 `/api/` 到后端。
 - 统一业务响应：Spring 返回 `{success,data,error,requestId,timestamp}`；错误包含机器可读 code 和 message。FastAPI 按 AI 契约直接返回 JSON；认证/验证错误为 HTTP 401/422，预测提前期错误为 HTTP 422。
@@ -113,4 +113,4 @@ Spring Boot 负责业务事实校验、状态机、权限、事务和最终持�
 
 ## 7. 当前联调状态与剩余风险
 
-前端 `src/services/api.ts` 已集中维护语义路径到后端真实路径的映射（例如 `/purchase-demands` 对齐 `/procurement/demands`），并完成四角色候选版浏览器联调。当前材料仍只能标记 UAT 候选：用户个人 UAT、干净 MySQL 8/Compose 复现、生产数据实验和最终材料冻结尚未完成；后续接口变更必须同步更新路径映射、契约测试和追踪矩阵。
+前端 `src/services/api.ts` 已集中维护语义路径到后端真实路径的映射（例如 `/purchase-demands` 对齐 `/procurement/demands`），并完成四角色当前工作树浏览器联调。便携 MySQL 8.4.11 已从干净库完成 164 项验收；当前材料仍只能标记 UAT 候选，因为用户个人 UAT、Docker Compose 容器复现、生产数据实验和最终材料冻结尚未完成。后续接口变更必须同步更新路径映射、契约测试和追踪矩阵。

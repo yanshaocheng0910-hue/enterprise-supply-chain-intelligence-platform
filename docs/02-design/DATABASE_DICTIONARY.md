@@ -42,11 +42,11 @@
 
 | 表 | 关键字段 | 关系/用途 |
 |---|---|---|
-| `purchase_demand` | `demand_no`、`material_id`、`quantity`、`expected_date`、`priority`、`source_type/source_ref`、`status`、`created_by`、`version` | 采购需求草稿和来源追踪 |
+| `purchase_demand` | `demand_no`、`material_id`、`quantity`、`expected_date`、`priority`、`source_type/source_ref`、`forecast_run_id`、`status`、`created_by`、`version` | 采购需求草稿和来源追踪；预测采纳需求以唯一 `forecast_run_id` 关联原预测批次 |
 | `purchase_plan` | `plan_no`、`plan_name`、`status`、`total_amount`、审批人/时间、`version` | 采购计划主表 |
 | `purchase_plan_item` | `plan_id`、`demand_id`、`material_id`、`supplier_id`、`quantity`、`unit_price`、`expected_date` | 计划明细 |
-| `purchase_order` | `order_no`、`plan_id`、`supplier_id`、`status`、`order_amount`、`expected_arrival_date`、`idempotency_key`、`version` | 已审批计划生成的订单 |
-| `purchase_order_item` | `order_id`、`material_id`、`quantity`、`received_qty`、`unit_price`、`amount` | 订单明细和累计实收 |
+| `purchase_order` | `order_no`、`plan_id`（唯一）、`supplier_id`、`status`、`order_amount`、`expected_arrival_date`、`idempotency_key`、`version` | 已审批计划生成的订单；数据库约束保证一个计划至多生成一个订单 |
+| `purchase_order_item` | `order_id`、`material_id`、`quantity`、`received_qty`、`unit_price`、`amount` | 订单明细和累计合格实收；拒收数量不计入 `received_qty` |
 | `delivery_notice` | `notice_no`、`order_id`、`supplier_id`、`status`、`expected_arrival_at`、承运商/运单、`source_type`、`version` | 供应商到货通知 |
 | `delivery_notice_item` | `notice_id`、`order_item_id`、`quantity` | 到货明细 |
 | `receipt` | `receipt_no`、`order_id`、`notice_id`、`warehouse_id`、`status`、`received_by`、`idempotency_key` | 收货主表；收货和库存事务一致 |
@@ -58,17 +58,24 @@
 
 | 表 | 关键字段 | 关系/用途 |
 |---|---|---|
-| `forecast_run` | `run_no`、`material_id`、`as_of_date`、`horizon_days`、`model_name/version`、`data_hash`、`data_label`、MAE/RMSE/MAPE、`fallback_reason`、`validation_details`、`split_details`、`feature_version`、`random_seed`、`status` | 预测运行元数据；默认窗口 14 日 |
+| `forecast_run` | `run_no`、`material_id`、`as_of_date`、`horizon_days`、`model_name/version`、`data_hash`、`data_label`、MAE/RMSE/MAPE、`fallback_reason`、`validation_details`、`split_details`、`feature_version`、`random_seed`、`status`、`suggestion_status`、`suggestion_decision_note/by/at`、`optimization_note`、`version` | 预测运行元数据及采购建议的待处理/采纳/拒绝状态；默认窗口 14 日 |
 | `forecast_result` | `run_id`、`forecast_date`、`predicted_qty`、原始/区间值、`suggested_order_qty`、`warning_code`、`postprocess_note` | 每运行每日期唯一；保存后处理说明 |
+| `procurement_scenario` | `scenario_no/name`、`material_id`、`forecast_run_id`、输入/来源/结果 JSON 快照、`data_fingerprint`、基准/模拟建议量与金额、`risk_level`、`status`、`version`、模拟/采纳幂等键、`adopted_demand_id`、创建/过期/采纳时间 | 冻结采购情景推演证据；`PREVIEW/ADOPTED/EXPIRED`；模拟不改业务事实，采纳后关联唯一需求 |
 | `ai_parse_record` | `parse_no`、`task_type`、`schema_version`、`input_text`、上下文、`provider/model_name`、`prompt_version`、原始/规范 JSON、校验标记、`final_status`、确认人/时间、`request_id` | 受限解析预览、确认和审计 |
-| `warning_record` | `warning_no`、`warning_type`、`severity`、目标、标题、原因/建议、`status`、处理人/结果 | 缺货、延期、差异等风险闭环 |
+| `warning_record` | `warning_no`、`warning_type`、`severity`、目标、标题、原因/建议、`status`、`source_key`（唯一）、`condition_active`、`last_detected_at`、`updated_at`、处理人/结果 | 缺货、延期、差异等规则/事件风险闭环；唯一来源键用于去重，条件状态用于区分人工关闭与风险解除 |
 | `operation_log` | `request_id`、操作者/角色、`action_code`、目标、前后状态、`detail_text`、时间 | 关键操作审计 |
 
 ## 3. 状态代码原则
 
-路线图定义的主状态包括：计划 `DRAFT/PENDING_APPROVAL/APPROVED/ORDER_CREATED/CLOSED`（异常 `REJECTED/CANCELLED`）；订单 `PENDING_CONFIRMATION/CONFIRMED/PENDING_SHIPMENT/SHIPPED/ARRIVED/RECEIVED/RECONCILING/COMPLETED`（异常 `REJECTED/CANCELLED`）；到货通知从 `DRAFT/SUBMITTED/IN_TRANSIT/ARRIVED/RECEIVED` 变化；对账从 `PENDING/CONFIRMED/COMPLETED` 或 `DISPUTED/RESOLVED` 变化。实际可用动作以当前后端状态服务和迁移数据为准。
+路线图定义的主状态包括：计划 `DRAFT/PENDING_APPROVAL/APPROVED/ORDER_CREATED/CLOSED`（异常 `REJECTED/CANCELLED`）；订单 `PENDING_CONFIRMATION/CONFIRMED/PENDING_SHIPMENT/SHIPPED/ARRIVED/PARTIALLY_RECEIVED/RECEIVED/RECONCILING/COMPLETED`（异常 `REJECTED/CANCELLED`）；到货通知从 `DRAFT/SUBMITTED/IN_TRANSIT/ARRIVED/RECEIVED` 变化；对账从 `PENDING/CONFIRMED/COMPLETED` 或 `DISPUTED/RESOLVED` 变化。分批收货期间订单为 `PARTIALLY_RECEIVED`；只有全部订单数量合格收齐后才进入 `RECEIVED` 并允许创建对账。实际可用动作以当前后端状态服务和迁移数据为准。
 
-## 4. CSV 导入字段字典
+## 4. 当前迁移补录
+
+`V4__decision_loop_and_warning_rules.sql` 为 V1—V3 之后的增量迁移，执行时新增预测建议状态/版本/说明字段、`purchase_demand.forecast_run_id` 外键及唯一索引、预警条件与来源字段及唯一索引，并增加 `purchase_order(plan_id)` 唯一索引。迁移还把已有计划引用的需求从 `DRAFT` 校正为 `PLANNED`，把已有订单关联的计划从 `APPROVED` 校正为 `ORDER_CREATED`。
+
+`V5__procurement_scenario_simulation.sql` 新增 `procurement_scenario`，保存输入、事实和结果快照、数据指纹、结果摘要、状态/版本、两类幂等键和采纳需求引用。当前 D 盘 H2 运行库已由 Flyway 升级到 V5，Spring Boot 54 项集成测试通过；便携 MySQL 8.4.11 干净库也已执行 V1—V5 并通过 164 项独立验收。Docker Compose 容器复现尚未执行。
+
+## 5. CSV 导入字段字典
 
 示例位于 `D:\论文\samples\import`，对应后端 `import_type` 为 `SUPPLIER`、`MATERIAL`、`INVENTORY`、`DEMAND_HISTORY`。提交前先调用 preview，确认无错误再 commit。
 
