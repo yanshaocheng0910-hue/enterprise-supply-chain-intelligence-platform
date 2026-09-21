@@ -20,6 +20,7 @@ output/playwright/
 .playwright-cli/
 .pytest_cache/
 **/.pytest_cache/
+.work/
 
 # Editors / OS
 .idea/

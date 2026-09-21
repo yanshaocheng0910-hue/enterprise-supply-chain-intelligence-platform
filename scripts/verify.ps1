@@ -15,7 +15,8 @@ function Require-Path([string]$RelativePath) {
 
 $RequiredPaths = @(
     '.env.example', 'docker-compose.yml',
-    'scripts/start-dev.ps1', 'scripts/stop-dev.ps1', 'scripts/verify.ps1',
+    'scripts/start-dev.ps1', 'scripts/stop-dev.ps1', 'scripts/install-local-llm-runtime.ps1', 'scripts/start-local-llm.ps1', 'scripts/stop-local-llm.ps1',
+    'scripts/install-local-mysql.ps1', 'scripts/start-local-mysql.ps1', 'scripts/stop-local-mysql.ps1', 'scripts/start-mysql-uat-backend.ps1', 'scripts/stop-mysql-uat-backend.ps1', 'scripts/local-process-identity.ps1', 'scripts/verify_mysql_uat.py', 'scripts/verify.ps1',
     'backend/Dockerfile', 'ai-service/Dockerfile', 'frontend/Dockerfile', 'frontend/nginx.conf',
     'samples/import/suppliers.csv', 'samples/import/materials.csv', 'samples/import/inventory.csv', 'samples/import/demand_history.csv',
     'docs/01-requirements/REQUIREMENTS_V1.0.md',
@@ -28,7 +29,7 @@ $RequiredPaths = @(
 )
 $RequiredPaths | ForEach-Object { Require-Path $_ }
 
-foreach ($ScriptName in @('start-dev.ps1', 'stop-dev.ps1', 'verify.ps1')) {
+foreach ($ScriptName in @('start-dev.ps1', 'stop-dev.ps1', 'install-local-llm-runtime.ps1', 'start-local-llm.ps1', 'stop-local-llm.ps1', 'install-local-mysql.ps1', 'start-local-mysql.ps1', 'stop-local-mysql.ps1', 'start-mysql-uat-backend.ps1', 'stop-mysql-uat-backend.ps1', 'local-process-identity.ps1', 'verify.ps1')) {
     $ScriptPath = Join-Path $ProjectRoot ("scripts/{0}" -f $ScriptName)
     if (Test-Path -LiteralPath $ScriptPath) {
         $Tokens = $null
@@ -77,6 +78,17 @@ if (-not $StaticOnly) {
             else { $Failures.Add("$($Check.name) returned HTTP $($Response.StatusCode)") }
         }
         catch { $Failures.Add("$($Check.name) did not respond: $($Check.url)") }
+    }
+    $DotEnvPath = Join-Path $ProjectRoot '.env'
+    if (Test-Path -LiteralPath $DotEnvPath) {
+        $DotEnvText = Get-Content -LiteralPath $DotEnvPath -Raw -Encoding UTF8
+        if ($DotEnvText -match '(?m)^LLM_PROVIDER\s*=\s*openai-compatible\s*$') {
+            try {
+                $Response = Invoke-WebRequest -Uri 'http://127.0.0.1:11435/health' -UseBasicParsing -TimeoutSec 3
+                if ($Response.StatusCode -eq 200) { Write-Host 'Local LLM: healthy (200)' } else { $Failures.Add("Local LLM returned HTTP $($Response.StatusCode)") }
+            }
+            catch { $Failures.Add('Local LLM is configured but did not respond: http://127.0.0.1:11435/health') }
+        }
     }
 }
 

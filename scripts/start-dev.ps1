@@ -53,14 +53,22 @@ Set-DefaultEnvironmentValue 'SCIC_DB_PASSWORD' ''
 Set-DefaultEnvironmentValue 'SCIC_AI_BASE_URL' 'http://127.0.0.1:8001'
 Set-DefaultEnvironmentValue 'SCIC_AI_SERVICE_TOKEN' 'CHANGE_ME_local_ai_service_token'
 Set-DefaultEnvironmentValue 'SCIC_AI_CONNECT_TIMEOUT_MS' '2000'
-Set-DefaultEnvironmentValue 'SCIC_AI_READ_TIMEOUT_MS' '15000'
+Set-DefaultEnvironmentValue 'SCIC_AI_READ_TIMEOUT_MS' '75000'
 Set-DefaultEnvironmentValue 'SCIC_CORS_ORIGINS' 'http://localhost:5173,http://127.0.0.1:5173'
 Set-DefaultEnvironmentValue 'SCIC_LOG_FILE' (Join-Path $LogRoot 'backend.log')
 Set-DefaultEnvironmentValue 'LLM_PROVIDER' 'rule'
+Set-DefaultEnvironmentValue 'OPENAI_TIMEOUT_SECONDS' '60'
+Set-DefaultEnvironmentValue 'OPENAI_MAX_TOKENS' '512'
+Set-DefaultEnvironmentValue 'LLM_LOCAL_ONLY' 'true'
+Set-DefaultEnvironmentValue 'SCIC_DEMO_SYNTHETIC_HISTORY_ENABLED' 'true'
 Set-DefaultEnvironmentValue 'CORS_ALLOW_ORIGINS' $env:SCIC_CORS_ORIGINS
 Set-DefaultEnvironmentValue 'VITE_API_BASE_URL' '/api/v1'
 Set-DefaultEnvironmentValue 'VITE_ENABLE_DEMO_FALLBACK' 'false'
 if ([string]::IsNullOrWhiteSpace($env:X_SERVICE_TOKEN)) { $env:X_SERVICE_TOKEN = $env:SCIC_AI_SERVICE_TOKEN }
+
+if ($env:LLM_PROVIDER -eq 'openai-compatible' -and $env:OPENAI_BASE_URL -match '^http://(?:127\.0\.0\.1|localhost):11435(?:/v1)?/?$') {
+    & (Join-Path $PSScriptRoot 'start-local-llm.ps1') -ModelAlias $env:OPENAI_MODEL -Port 11435
+}
 
 if (Test-Path -LiteralPath $ManifestPath) {
     $Existing = Get-Content -LiteralPath $ManifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
@@ -117,10 +125,13 @@ function Start-HiddenService([string]$Name, [string]$FilePath, [string[]]$Argume
     $StdOut = Join-Path $LogRoot ("{0}.out.log" -f $Name)
     $StdErr = Join-Path $LogRoot ("{0}.err.log" -f $Name)
     $Process = Start-Process -FilePath $FilePath -ArgumentList $Arguments -WorkingDirectory $WorkingDirectory -WindowStyle Hidden -RedirectStandardOutput $StdOut -RedirectStandardError $StdErr -PassThru
+    $ProcessStartTimeUtc = $Process.StartTime.ToUniversalTime().ToString('o')
     return [pscustomobject]@{
         name = $Name
         pid = $Process.Id
         port = $Port
+        processStartTimeUtc = $ProcessStartTimeUtc
+        executablePath = $Process.Path
         stdout = $StdOut
         stderr = $StdErr
     }

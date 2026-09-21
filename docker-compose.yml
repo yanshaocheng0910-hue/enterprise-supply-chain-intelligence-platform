@@ -22,17 +22,23 @@ services:
       interval: 10s
       timeout: 5s
       retries: 20
+    networks:
+      - scic-internal
 
   ai-service:
     build:
       context: ./ai-service
     environment:
       X_SERVICE_TOKEN: ${SCIC_AI_SERVICE_TOKEN:-CHANGE_ME_local_ai_service_token}
-      LLM_PROVIDER: ${LLM_PROVIDER:-rule}
-      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-      OPENAI_MODEL: ${OPENAI_MODEL:-}
-      OPENAI_TIMEOUT_SECONDS: ${OPENAI_TIMEOUT_SECONDS:-15}
+      # Qwen is verified only on the Windows host. A container localhost is not that host.
+      # Keep this candidate on explicit rules; do not inherit host endpoints or API keys.
+      LLM_PROVIDER: rule
+      OPENAI_BASE_URL: ""
+      LLM_LOCAL_ONLY: "true"
+      OPENAI_API_KEY: ""
+      OPENAI_MODEL: ""
+      OPENAI_TIMEOUT_SECONDS: ${OPENAI_TIMEOUT_SECONDS:-60}
+      OPENAI_MAX_TOKENS: ${OPENAI_MAX_TOKENS:-512}
       CORS_ALLOW_ORIGINS: ${CORS_ALLOW_ORIGINS:-http://localhost:8088,http://127.0.0.1:8088}
       SERVICE_NAME: ai-service
       SERVICE_VERSION: 0.1.0
@@ -46,6 +52,7 @@ services:
       context: ./backend
     environment:
       SCIC_SERVER_PORT: 8080
+      SCIC_SERVER_ADDRESS: 0.0.0.0
       SCIC_DB_DRIVER: com.mysql.cj.jdbc.Driver
       SCIC_DB_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE:-scic_platform}?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
       SCIC_DB_USER: ${MYSQL_USER:-scic}
@@ -55,9 +62,10 @@ services:
       SCIC_AI_BASE_URL: http://ai-service:8001
       SCIC_AI_SERVICE_TOKEN: ${SCIC_AI_SERVICE_TOKEN:-CHANGE_ME_local_ai_service_token}
       SCIC_AI_CONNECT_TIMEOUT_MS: ${SCIC_AI_CONNECT_TIMEOUT_MS:-2000}
-      SCIC_AI_READ_TIMEOUT_MS: ${SCIC_AI_READ_TIMEOUT_MS:-15000}
+      SCIC_AI_READ_TIMEOUT_MS: ${SCIC_AI_READ_TIMEOUT_MS:-75000}
       SCIC_CORS_ORIGINS: http://localhost:8088,http://127.0.0.1:8088
       SCIC_LOG_FILE: /app/.data/logs/backend.log
+      SCIC_DEMO_SYNTHETIC_HISTORY_ENABLED: ${SCIC_DEMO_SYNTHETIC_HISTORY_ENABLED:-false}
     volumes:
       - type: bind
         source: ${SCIC_DATA_DIR:-D:/论文/.data}/logs
@@ -89,4 +97,3 @@ services:
 networks:
   scic-internal:
     driver: bridge
-
