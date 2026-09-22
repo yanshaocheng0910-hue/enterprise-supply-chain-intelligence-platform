@@ -205,3 +205,12 @@
 - 浏览器以完成订单 `PO-202608-001` 读取 17 条事件；复核时发现创建节点不应使用当前完成状态、历史动作代码不应显示英文，修正后再次通过 57/57 测试和真实运行复核。
 - 前端生产构建通过；1440px 与 390px 抽屉无横向溢出，Noto Sans SC 生效，最终新会话控制台 0 errors / 0 warnings。
 - 证据：`docs/assets/screenshots/23-order-timeline-desktop.png`、`24-order-timeline-mobile.png`。用户个人 UAT、V6 MySQL 与 Compose 边界不变。
+
+---
+
+## 2026-09-22（Asia/Shanghai）— 论文模板资料读取与交接固化
+
+- 读取用户提供的《计算机学院毕业论文范文及撰写规范.zip》，识别出论文范文、撰写规范、文献综述说明和开题报告模板四类资料；因部分文件扩展名与实际 Word 容器不一致，先在 D 盘生成可检索工作副本。
+- 原始压缩包保持不变；参考副本归档到 `D:\论文\.data\reference-materials\thesis-template-source-20260922`，该目录被 `.gitignore` 忽略，不会进入 GitHub。
+- 新增 `docs/08-course-deliverables/THESIS_TEMPLATE_REQUIREMENTS_2026-09-22.md`，记录章节结构、摘要关键词、参考文献、格式和开题报告字段；新增 `THESIS_OUTLINE_MAPPING.md`，把现有平台证据映射到论文各章。
+- 本次只做模板读取和记录，不生成虚构论文内容、不冻结学校最终 Word/Excel 文件；平台仍以用户 UAT、V6 MySQL 复验和 Compose 实测为前置收口条件。

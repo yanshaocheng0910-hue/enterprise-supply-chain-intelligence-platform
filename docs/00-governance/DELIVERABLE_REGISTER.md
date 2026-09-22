@@ -39,4 +39,18 @@
 | 项目进度计划参考模板.xlsx | D:\lingzhu\Document\项目经理：项目进度计划参考模板.xlsx | 已确认存在，未读取 |
 | 用户使用手册参考模板.doc | D:\lingzhu\Document\产品：用户使用手册参考模板.doc | 已确认存在，未读取 |
 
+## 2026-09-22 新增论文模板资料
+
+| 材料 | 原始位置 | D 盘参考副本 | 当前处理 |
+|---|---|---|---|
+| 计算机学院毕业论文范文及撰写规范.zip | `C:\Users\给\xwechat_files\wxid_3b2257asbyj021_7793\msg\file\2026-09\计算机学院毕业论文范文及撰写规范.zip` | `D:\论文\.data\reference-materials\thesis-template-source-20260922` | 已读取并提炼为论文约束；原始文件未改动，参考副本不入 Git |
+| 论文范文、撰写规范、文献综述、开题报告模板 | 上述压缩包内 | 同目录 `converted` 子目录 | 已转换为可检索工作副本，仅用于结构核对，不直接覆盖学校原模板 |
+
+本批资料对应的可执行记录：
+
+- `docs/08-course-deliverables/THESIS_TEMPLATE_REQUIREMENTS_2026-09-22.md`
+- `docs/08-course-deliverables/THESIS_OUTLINE_MAPPING.md`
+
+论文正文、开题报告、文献综述和最终格式文件仍在平台 UAT 与模板最终确认后生成；不根据范文虚构实验结果或进度。
+
 启用模板时必须先复制工作副本到 D:\论文\docs\08-course-deliverables，原始模板保持不变。

@@ -2,6 +2,13 @@
 
 > 说明：首条记录是 M0 规划时的历史快照；当前事实以“V0.9 UAT 候选执行证据收口”及 `CURRENT_STATUS.md` 为准。
 
+## 2026-09-22 — 论文范文与撰写规范归档
+
+- 读取用户提供的计算机学院论文范文、撰写规范、文献综述说明和开题报告模板。
+- 将论文结构、摘要/关键词、参考文献、图表编号、章节层级、开题报告字段和进度安排提炼到 `docs/08-course-deliverables/THESIS_TEMPLATE_REQUIREMENTS_2026-09-22.md`。
+- 将平台模块、接口、测试和真实运行证据映射到论文各章，形成 `docs/08-course-deliverables/THESIS_OUTLINE_MAPPING.md`。
+- 原始模板未修改；可检索副本保存在 D 盘 `.data/reference-materials` 忽略目录，不进入 GitHub，不把尚未完成的 UAT、V6 MySQL、Compose 或论文实验写成已完成事实。
+
 ## 2026-09-21 — 订单履约证据链
 
 - 新增 `GET /api/v1/procurement/orders/{id}/timeline`，按订单聚合业务记录、操作审计和库存流水。

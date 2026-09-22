@@ -88,7 +88,7 @@ Sol Max 最终独立复验确认采购情景功能性 P0/P1 为 0；补齐过期
 2. Spring Boot 调 FastAPI 的成功路径和 35 项失败/超时/错误集成场景已自动化覆盖；仍需在用户 UAT 中关注真实长耗时和交互体验。
 3. 用户个人 UAT 已开始，首批两条反馈已修复待复验；其余角色和完整业务操作仍需继续按 `UAT_FEEDBACK.md` 登记和回归。
 4. 便携 MySQL 8.4.11 干净库已完成 V1—V5 迁移和 164 项独立验收；新增 V6 报告表尚待 MySQL 复验。Docker Compose 容器环境仍未启动实测，不能称容器部署验收通过。
-5. 学校 Word/Excel 模板仍保持原样；需求规格、进度计划、设计说明、测试报告、用户手册、实训报告、论文和答辩 PPT 尚未按最终模板冻结。
+5. 学校 Word/Excel 模板仍保持原样；论文范文与撰写规范已读取并固化到 `docs/08-course-deliverables/THESIS_TEMPLATE_REQUIREMENTS_2026-09-22.md` 与 `THESIS_OUTLINE_MAPPING.md`；需求规格、进度计划、设计说明、测试报告、用户手册、实训报告、论文和答辩 PPT 尚未按最终模板冻结。
 6. 示例和预测实验数据为 `DEMO_SYNTHETIC`，不能描述为真实企业生产数据。
 7. 本地 OpenAI-compatible LLM 已配置并验证；外部云端 LLM 按安全原则不启用。仍需扩大 Ground Truth 与人工修改率统计，不能用 12 条回归集声称生产准确率。
 
