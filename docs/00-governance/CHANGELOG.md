@@ -9,6 +9,12 @@
 - 将平台模块、接口、测试和真实运行证据映射到论文各章，形成 `docs/08-course-deliverables/THESIS_OUTLINE_MAPPING.md`。
 - 原始模板未修改；可检索副本保存在 D 盘 `.data/reference-materials` 忽略目录，不进入 GitHub，不把尚未完成的 UAT、V6 MySQL、Compose 或论文实验写成已完成事实。
 
+## 2026-09-22 — 开题报告工作稿
+
+- 按学校开题报告模板生成《企业供应链数智化协同平台设计与开发》开题报告工作稿，包含基本信息、背景与意义、初步研究现状、问题、研究内容、方法、技术路线、预期成果、工程创新点、进度安排和审核页。
+- 内容区分当前已有实现与后续计划：已写入 Vue 3、Spring Boot 模块化单体、FastAPI、本地 Qwen、14 日预测、采购闭环、预警、审计和订单时间线等真实基础；用户 UAT、V6 MySQL、Compose、扩展实验和正式参考文献补充保留为后续工作。
+- Word 工作稿已完成 XML 校验和 PDF 页面渲染检查；同时保留 Markdown 源稿与 `scripts/build_opening_proposal.js`，便于导师意见修改后重新生成。
+
 ## 2026-09-21 — 订单履约证据链
 
 - 新增 `GET /api/v1/procurement/orders/{id}/timeline`，按订单聚合业务记录、操作审计和库存流水。
